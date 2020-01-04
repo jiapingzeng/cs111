@@ -29,33 +29,67 @@ int main(int argc, char **argv) {
     printf("-----\n");
 
     // creates/opens file if output is not specified
+    /*
     if (strcmp(output, "") != 0) {
         int fd;
         mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
         fd = open(output, O_WRONLY | O_CREAT, mode);
         printf("%d", fd);
+        close(fd);
+    }
+    */
+
+    int infd;
+    int outfd;
+    char ch;
+    mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWGRP;
+
+    if (strcmp(input, "") == 0) infd = STDIN_FILENO;
+    else infd = open(input, O_RDONLY);
+
+    if (strcmp(output, "") == 0) outfd = STDOUT_FILENO;
+    else outfd = open(output, O_WRONLY | O_CREAT, mode);
+
+    while (read(infd, &ch, 1) > 0) {
+        write(outfd, &ch, 1);
     }
 
+    close(infd);
+    close(outfd);
+
+    /*
     if (strcmp(input, "") == 0) {
         // read from stdin
         if (strcmp(output, "") == 0) {
             // write to stdout
-            char ch;
             while (read(STDIN_FILENO, &ch, 1) > 0) {
-                printf("%c", ch);
+                write(STDOUT_FILENO, &ch, 1);
             }
         } else {
             // write to specified output
         }
     } else {
         // read from specified input
+        infd = open(input, O_RDONLY);
         if (strcmp(output, "") == 0) {
             // write to stdout
+            while (read(infd, &ch, 1) > 0) {
+                write(STDOUT_FILENO, &ch, 1);
+            }
         } else {
             // write to specified output
-            
+            mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWGRP;
+            outfd = open(output, O_WRONLY | O_CREAT, mode);
+            //int err = write(outfd, "test", strlen("test"));
+            //printf("%s\n", strerror(err));
+            while (read(infd, &ch, 1) > 0) {
+                write(outfd, &ch, 1);
+            }
+            close(outfd);
         }
+        close(infd);
     }
+    */
 
     exit(0);
 }
