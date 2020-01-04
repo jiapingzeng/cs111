@@ -1,1 +1,12 @@
-https://www.gnu.org/software/libc/manual/html_node/Getopt-Long-Option-Example.html
+NAME: Jiaping Zeng
+EMAIL: jiapingzeng@ucla.edu
+ID: 905363270
+
+Included files:
+- main.c:
+- Makefile:
+- backtrace.png:
+- breakpoint.png:
+
+Work cited:
+- getopt_long example: https://www.gnu.org/software/libc/manual/html_node/Getopt-Long-Option-Example.html

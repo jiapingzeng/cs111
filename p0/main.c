@@ -13,6 +13,7 @@ static int segfault_flag;
 static int catch_flag;
 
 void parse_options(int argc, char **argv, char **input, char **output);
+void handle_sigsegv();
 
 int main(int argc, char **argv) {
 
@@ -28,27 +29,40 @@ int main(int argc, char **argv) {
     printf("  catch: %d\n", catch_flag);
     printf("-----\n");
 
-    // creates/opens file if output is not specified
-    /*
-    if (strcmp(output, "") != 0) {
-        int fd;
-        mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
-        fd = open(output, O_WRONLY | O_CREAT, mode);
-        printf("%d", fd);
-        close(fd);
+    if (catch_flag) {
+        signal(SIGSEGV, handle_sigsegv);
     }
-    */
+
+    if (segfault_flag) {
+        // force a segfault
+        char *ptr = NULL;
+        *ptr = 'a';
+    }
 
     int infd;
     int outfd;
     char ch;
-    mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWGRP;
+    mode_t creat_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWGRP;
 
-    if (strcmp(input, "") == 0) infd = STDIN_FILENO;
-    else infd = open(input, O_RDONLY);
+    if (strcmp(input, "") == 0) 
+        infd = STDIN_FILENO;
+    else {
+        infd = open(input, O_RDONLY);
+        if (infd < 0) {
+            fprintf(stderr, "Unable to open input file %s", input);
+            exit(2);
+        }
+    }
 
-    if (strcmp(output, "") == 0) outfd = STDOUT_FILENO;
-    else outfd = open(output, O_WRONLY | O_CREAT, mode);
+    if (strcmp(output, "") == 0) 
+        outfd = STDOUT_FILENO;
+    else {
+        outfd = open(output, O_WRONLY | O_CREAT, creat_mode);
+        if (outfd < 0) {
+            fprintf(stderr, "Unable to open/create output file %s", output);
+            exit(3);
+        }
+    }
 
     while (read(infd, &ch, 1) > 0) {
         write(outfd, &ch, 1);
@@ -126,4 +140,9 @@ void parse_options(int argc, char **argv, char **input, char **output) {
                 exit(1);
         }
     }
+}
+
+void handle_sigsegv() {
+    fprintf(stderr, "Caught segmentation fault\n");
+    exit(4);
 }
