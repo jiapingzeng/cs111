@@ -8,6 +8,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 static int segfault_flag;
 static int catch_flag;
@@ -22,88 +23,48 @@ int main(int argc, char **argv) {
 
     parse_options(argc, argv, &input, &output);
     
-    printf("-----\nParsed options:\n");
-    printf("  in: %s\n", strcmp(input, "") == 0 ? "(empty)" : input);
-    printf("  out: %s\n", strcmp(output, "") == 0 ? "(empty)" : output);
-    printf("  segfault: %d\n", segfault_flag);
-    printf("  catch: %d\n", catch_flag);
-    printf("-----\n");
-
-    if (catch_flag) {
-        signal(SIGSEGV, handle_sigsegv);
-    }
-
-    if (segfault_flag) {
-        // force a segfault
-        char *ptr = NULL;
-        *ptr = 'a';
-    }
-
     int infd;
     int outfd;
     char ch;
-    mode_t creat_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWGRP;
+    // create file with 644 permissions
+    mode_t creat_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 
-    if (strcmp(input, "") == 0) 
-        infd = STDIN_FILENO;
+    // redirect input/output based on arguments
+    if (strcmp(input, "") == 0) infd = STDIN_FILENO;
     else {
         infd = open(input, O_RDONLY);
         if (infd < 0) {
-            fprintf(stderr, "Unable to open input file %s", input);
+            fprintf(stderr, "Unable to open input file '%s': %s\n", input, strerror(errno));
             exit(2);
         }
     }
-
-    if (strcmp(output, "") == 0) 
-        outfd = STDOUT_FILENO;
+    if (strcmp(output, "") == 0) outfd = STDOUT_FILENO;
     else {
         outfd = open(output, O_WRONLY | O_CREAT, creat_mode);
         if (outfd < 0) {
-            fprintf(stderr, "Unable to open/create output file %s", output);
+            fprintf(stderr, "Unable to open/create output file '%s': %s\n", output, strerror(errno));
             exit(3);
         }
     }
 
+    // register handler for segfault
+    if (catch_flag) {
+        signal(SIGSEGV, handle_sigsegv);
+    }
+
+    // force a segfault
+    if (segfault_flag) {
+        char *ptr = NULL;
+        *ptr = 'a';
+    }
+
+    // copy input to output one character at a time
     while (read(infd, &ch, 1) > 0) {
         write(outfd, &ch, 1);
     }
 
     close(infd);
     close(outfd);
-
-    /*
-    if (strcmp(input, "") == 0) {
-        // read from stdin
-        if (strcmp(output, "") == 0) {
-            // write to stdout
-            while (read(STDIN_FILENO, &ch, 1) > 0) {
-                write(STDOUT_FILENO, &ch, 1);
-            }
-        } else {
-            // write to specified output
-        }
-    } else {
-        // read from specified input
-        infd = open(input, O_RDONLY);
-        if (strcmp(output, "") == 0) {
-            // write to stdout
-            while (read(infd, &ch, 1) > 0) {
-                write(STDOUT_FILENO, &ch, 1);
-            }
-        } else {
-            // write to specified output
-            mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH | S_IWGRP;
-            outfd = open(output, O_WRONLY | O_CREAT, mode);
-            //int err = write(outfd, "test", strlen("test"));
-            //printf("%s\n", strerror(err));
-            while (read(infd, &ch, 1) > 0) {
-                write(outfd, &ch, 1);
-            }
-            close(outfd);
-        }
-        close(infd);
-    }
-    */
 
     exit(0);
 }

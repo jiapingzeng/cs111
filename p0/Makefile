@@ -14,4 +14,4 @@ lab0-905363270.tar.gz:
 	tar -czf $@ $(dist_files)
 
 clean:
-	rm -f *.tgz lab0
+	rm -f *.out *.tgz lab0
