@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -g -Wall -Wextra
 
-dist_files = main.c Makefile README
+dist_files = main.c Makefile README backtrace.png breakpoint.png
 
 default: lab0
 
