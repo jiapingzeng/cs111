@@ -3,10 +3,14 @@ EMAIL: jiapingzeng@ucla.edu
 ID: 905363270
 
 Included files:
-- main.c:
+- main.c: main program, copies stdin to stdout
 - Makefile:
-- backtrace.png:
-- breakpoint.png:
+  - default: builds main.c into executable lab0
+  - check: runs smoke check; test cases: 1) copy stdin to stdout 2)       copy stdin to specific output file 3) copy specific input file to     stdout 4) copy specific input file to specific output file 5) test    --segfault option 6) test --segfault --catch options and check        returned error
+  - clean: deletes files created by Makefile
+  - dist: builds distribution tarball
+- backtrace.png: screenshot of gdb showing a segfault and associated stack-trace
+- breakpoint.png: screenshot of gdb showing breakpoint and variable inspection
 
 Work cited:
 - getopt_long example: https://www.gnu.org/software/libc/manual/html_node/Getopt-Long-Option-Example.html

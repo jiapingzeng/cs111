@@ -18,7 +18,7 @@ check:
 	printf '\nAll tests completed successfully.\n'
 
 clean:
-	rm -f *test* *.out *.tgz lab0
+	rm -f *test* *.out *.tar.gz lab0
 
 dist: lab0-905363270.tar.gz
 
