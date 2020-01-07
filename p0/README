@@ -6,7 +6,13 @@ Included files:
 - lab0.c: main program, copies stdin to stdout
 - Makefile:
   - default: builds lab0.c into executable lab0
-  - check: runs smoke check; test cases: 1) copy stdin to stdout 2)       copy stdin to specific output file 3) copy specific input file to     stdout 4) copy specific input file to specific output file 5) test    --segfault option 6) test --segfault --catch options and check        returned error
+  - check: runs smoke check; test cases: 
+    1) copy stdin to stdout 
+    2) copy stdin to specific output file 
+    3) copy specific input file to stdout 
+    4) copy specific input file to specific output file 
+    5) test --segfault option 
+    6) test --segfault --catch options and check returned error
   - clean: deletes files created by Makefile
   - dist: builds distribution tarball
 - backtrace.png: screenshot of gdb showing a segfault and associated stack-trace
