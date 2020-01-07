@@ -5,7 +5,7 @@
 CC = gcc
 CFLAGS = -g -Wall -Wextra
 
-dist_files = main.c Makefile README backtrace.png breakpoint.png
+dist_files = lab0.c Makefile README backtrace.png breakpoint.png
 
 default: lab0
 
@@ -22,12 +22,12 @@ check:
 	printf '\nAll tests completed successfully.\n'
 
 clean:
-	rm -f *test* *.out *.tar.gz lab0
+	rm -rf *test* *.out *.tar.gz lab0
 
 dist: lab0-905363270.tar.gz
 
 lab0:
-	$(CC) $(CFLAGS) main.c -o $@
+	$(CC) $(CFLAGS) lab0.c -o $@
 
 lab0-905363270.tar.gz:
 	tar -czf $@ $(dist_files)
