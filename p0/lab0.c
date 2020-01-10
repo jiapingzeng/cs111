@@ -40,14 +40,20 @@ int main(int argc, char **argv) {
             fprintf(stderr, "Unable to open input file '%s': %s\n", input, strerror(errno));
             exit(2);
         }
+        close(STDIN_FILENO);
+        dup2(infd, STDIN_FILENO);
+        close(infd);
     }
     if (strcmp(output, "") == 0) outfd = STDOUT_FILENO;
     else {
-        outfd = open(output, O_WRONLY | O_CREAT, creat_mode);
+        outfd = open(output, O_WRONLY | O_CREAT | O_TRUNC, creat_mode);
         if (outfd < 0) {
             fprintf(stderr, "Unable to open/create output file '%s': %s\n", output, strerror(errno));
             exit(3);
         }
+        close(STDOUT_FILENO);
+        dup2(outfd, STDOUT_FILENO);
+        close(outfd);
     }
 
     // register handler for segfault
@@ -62,12 +68,9 @@ int main(int argc, char **argv) {
     }
 
     // copy input to output one character at a time
-    while (read(infd, &ch, 1) > 0) {
-        write(outfd, &ch, 1);
+    while (read(STDIN_FILENO, &ch, 1) > 0) {
+        write(STDOUT_FILENO, &ch, 1);
     }
-
-    close(infd);
-    close(outfd);
 
     exit(0);
 }

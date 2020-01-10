@@ -5,22 +5,12 @@
 #include <string.h>
 #include <poll.h>
 #include <stdio.h>
+#include <stdlib.h>
 
-struct termios saved;
+struct termios oldconfig;
 
-void reset_input_mode() {
-    tcsetattr(STDIN_FILENO, TCSANOW, &saved);
-}
-
-void set_input_mode() {
-    struct termios config;
-    tcgetattr(STDIN_FILENO, &saved);
-    tcgetattr(STDIN_FILENO, &config);
-    config.c_iflag = ISTRIP;
-    config.c_oflag = 0;
-    config.c_lflag = 0;
-    tcsetattr(STDIN_FILENO, TCSANOW, &config);
-}
+void set_input_mode();
+void reset_input_mode();
 
 int main() {
     char buffer[8];
@@ -35,4 +25,18 @@ int main() {
     reset_input_mode();
     
     return 0;
+}
+
+void reset_input_mode() {
+    tcsetattr(STDIN_FILENO, TCSANOW, &oldconfig);
+}
+
+void set_input_mode() {
+    tcgetattr(STDIN_FILENO, &oldconfig);
+    atexit(reset_input_mode);
+    struct termios newconfig = oldconfig;
+    newconfig.c_iflag = ISTRIP;
+    newconfig.c_oflag = 0;
+    newconfig.c_lflag = 0;
+    tcsetattr(STDIN_FILENO, TCSANOW, &newconfig);
 }

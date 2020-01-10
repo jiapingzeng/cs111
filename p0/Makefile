@@ -16,8 +16,8 @@ check:
 	echo 'test2test2test2' | ./lab0 --output test.out | cat test.out | grep '^test2test2test2$$' && rm -f test.* && printf '\nTest 2 completed successfully. Beginning test 3...\n\n'
 	echo 'test3test3test3' > test.in | ./lab0 --input test.in | grep '^test3test3test3$$' && rm -f test.* && printf '\nTest 3 completed successfully. Beginning test 4...\n\n'
 	echo 'test4test4test4' > test.in | ./lab0 --input test.in --output test.out | cat test.out | grep '^test4test4test4$$' && rm -f test.* && printf '\nTest 4 completed successfully. Beginning test 5...\n\n'
-	./lab0 --segfault || printf '\nTest 5 completed successfully. Beginning test 6...\n\n'
-	./lab0 --segfault --catch 2>test.err | cat test.err | grep '^Caught segmentation fault$$' && rm -f test.* && printf '\nTest 6 completed successfully. Running make clean...\n\n'
+	./lab0 --segfault || echo $$? | grep '^139$$' && printf '\nTest 5 completed successfully. Beginning test 6...\n\n'
+	./lab0 --segfault --catch 2>test.err || echo $$? | grep '^4$$' && cat test.err | grep '^Caught segmentation fault$$' && rm -f test.* && printf '\nTest 6 completed successfully. Running make clean...\n\n'
 	make clean
 	printf '\nAll tests completed successfully.\n'
 

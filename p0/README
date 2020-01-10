@@ -11,12 +11,12 @@ Included files:
     2) copy stdin to specific output file 
     3) copy specific input file to stdout 
     4) copy specific input file to specific output file 
-    5) test --segfault option 
-    6) test --segfault --catch options and check returned error
+    5) test --segfault option: confirm exit code 139
+    6) test --segfault --catch options: confirm exit code 4 and check returned error message
   - clean: deletes files created by Makefile
   - dist: builds distribution tarball
 - backtrace.png: screenshot of gdb showing a segfault and associated stack-trace
 - breakpoint.png: screenshot of gdb showing breakpoint and variable inspection
 
-Work cited:
+References:
 - getopt_long example: https://www.gnu.org/software/libc/manual/html_node/Getopt-Long-Option-Example.html
