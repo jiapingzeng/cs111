@@ -1,14 +1,17 @@
-#include <unistd.h>
-#include <stdio.h>
-#include <signal.h>
-#include <sys/types.h>
-#include <sys/stat.h>
+// NAME: Jiaping Zeng
+// EMAIL: jiapingzeng@ucla.edu
+// ID: 905363270
+
+#include <errno.h>
 #include <fcntl.h>
 #include <getopt.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <errno.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
 
 static int segfault_flag;
 static int catch_flag;
