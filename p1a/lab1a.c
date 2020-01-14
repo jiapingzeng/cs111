@@ -9,11 +9,28 @@
 
 struct termios oldconfig;
 
-void set_input_mode();
+void run_terminal();
 void reset_input_mode();
 
-int main(int argc, char **argv) {
+int main(/*int argc, char **argv*/) {
 
+    __pid_t pid = fork();
+    //int pipe1[2];
+    //int pipe2[2];
+
+    if (pid > 0) {
+        // parent (terminal)
+        run_terminal();
+    } else if (pid == 0) {
+        // child (exec bash)
+        printf("launching bash");
+        execl("/bin/bash", "bash", NULL);
+    } else {
+        // error
+        fprintf(stderr, "Unable to fork");
+    }
+
+    /**
     if (argc == 2) {
         if (strcmp(argv[1], "--shell") == 0) {
             __pid_t pid = fork();
@@ -42,8 +59,27 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
+    run_terminal();
+    **/
+    return 0;
+}
+
+void run_terminal() {
     char ch;
-    set_input_mode();
+    struct termios newconfig;
+
+    // set input mode
+    tcgetattr(STDIN_FILENO, &oldconfig);
+    atexit(reset_input_mode);
+    tcgetattr(STDIN_FILENO, &newconfig);
+    newconfig.c_iflag = ISTRIP;
+    newconfig.c_oflag = 0;
+    newconfig.c_lflag = 0;
+    tcsetattr(STDIN_FILENO, TCSANOW, &newconfig);
+
+    printf("terminal running");
+
+    // read keypresses
     while (1) {
         read(STDIN_FILENO, &ch, 1);
         if (ch == '\004')
@@ -53,19 +89,6 @@ int main(int argc, char **argv) {
         else
             write(STDOUT_FILENO, &ch, 1);
     }
-
-    return 0;
-}
-
-void set_input_mode() {
-    struct termios newconfig;
-    tcgetattr(STDIN_FILENO, &oldconfig);
-    atexit(reset_input_mode);
-    tcgetattr(STDIN_FILENO, &newconfig);
-    newconfig.c_iflag = ISTRIP;
-    newconfig.c_oflag = 0;
-    newconfig.c_lflag = 0;
-    tcsetattr(STDIN_FILENO, TCSANOW, &newconfig);
 }
 
 void reset_input_mode() {
