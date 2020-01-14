@@ -13,16 +13,16 @@ void set_input_mode();
 void reset_input_mode();
 
 int main() {
-    char buffer[8];
+    char ch;
     set_input_mode();
     while (1) {
-        read(STDIN_FILENO, &buffer, 8);
-        if (buffer[0] == '\004')
+        read(STDIN_FILENO, &ch, 1);
+        if (ch == '\004')
             break;
         else
-            write(STDOUT_FILENO, &buffer, 8);
+            write(STDOUT_FILENO, &ch, 1);
     }
-    reset_input_mode();
+    //reset_input_mode();
     
     return 0;
 }
@@ -32,9 +32,10 @@ void reset_input_mode() {
 }
 
 void set_input_mode() {
+    struct termios newconfig;
     tcgetattr(STDIN_FILENO, &oldconfig);
     atexit(reset_input_mode);
-    struct termios newconfig = oldconfig;
+    tcgetattr(STDIN_FILENO, &newconfig);
     newconfig.c_iflag = ISTRIP;
     newconfig.c_oflag = 0;
     newconfig.c_lflag = 0;
