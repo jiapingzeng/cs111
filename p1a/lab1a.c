@@ -15,15 +15,38 @@ void reset_input_mode();
 int main(/*int argc, char **argv*/) {
 
     __pid_t pid = fork();
-    //int pipe1[2];
-    //int pipe2[2];
+    int pipe1[2]; // read from terminal, write to shell
+    int pipe2[2]; // read from shell, write to terminal
+
+    // create pipes and exit on failure
+    if (pipe(pipe1) == -1 || pipe(pipe2) == -1) {
+        fprintf(stderr, "Pipe failed\n");
+        exit(1);
+    }
 
     if (pid > 0) {
         // parent (terminal)
-        run_terminal();
+        char *input = "pwd\0";
+        char buffer[256];
+        close(pipe1[0]);
+        write(pipe1[1], input, strlen(buffer));
+        close(pipe1[1]);
+
+        wait(NULL);
+        close(pipe2[1]);
+        read(pipe2[0], buffer, 256);
+        printf("%s\n", buffer);
+        close(pipe2[0]);
+        //run_terminal();
     } else if (pid == 0) {
         // child (exec bash)
-        printf("launching bash");
+        close(pipe1[1]);
+        dup2(pipe1[0], STDIN_FILENO);
+        close(pipe1[0]);
+
+        close(pipe2[0]);
+        dup2(pipe2[1], STDOUT_FILENO);
+        close(pipe2[1]);
         execl("/bin/bash", "bash", NULL);
     } else {
         // error
