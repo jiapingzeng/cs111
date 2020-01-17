@@ -9,8 +9,9 @@ int main()
 {
     int fwd[2];
     int bwd[2];
-    char *str = "hello\n";
-    char buffer[256];
+    char *str = "ps";
+    //char buffer1[256];
+    char buffer2[256];
     int status;
 
     pipe(fwd);
@@ -27,21 +28,26 @@ int main()
         waitpid(pid, &status, 0);
 
         close(bwd[1]);
-        read(bwd[0], buffer, sizeof(buffer));
-        printf("Received: \n%s", buffer);
+
+        read(bwd[0], buffer2, sizeof(buffer2));
+        printf("Parent received: \n%s\n", buffer2);
+
         exit(0);
     }
     else
     {
         // child
-        close(fwd[1]);
-        
-        // read(fwd[0], buffer, sizeof(buffer));
-        // printf("Received: %s", buffer);
+        //close(fwd[1]);
+
+        //read(fwd[0], buffer1, sizeof(buffer1));
+        //printf("Child: %s\n", buffer1);
+
+        //write(STDIN_FILENO, buffer1, sizeof(buffer1));
 
         dup2(STDIN_FILENO, fwd[0]);
         dup2(bwd[1], STDOUT_FILENO);
+        dup2(bwd[1], STDERR_FILENO);
 
-        execlp("/bin/bash", "bash", NULL);
+        execl("/bin/sh", "sh", NULL);
     }
 }
