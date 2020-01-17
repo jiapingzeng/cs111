@@ -5,54 +5,43 @@
 #include <stdio.h>
 #include <sys/wait.h>
 
-int main() {
-    int fd1[2];
-    int fd2[2];
-    char fixed_str[] = "test";
-    char input_str[100];
-    __pid_t pid;
+int main()
+{
+    int fwd[2];
+    int bwd[2];
+    char *str = "hello\n";
+    char buffer[256];
+    int status;
 
-    pipe(fd1);
-    pipe(fd2);
+    pipe(fwd);
+    pipe(bwd);
 
-    scanf("%s", input_str);
-    pid = fork();
+    __pid_t pid = fork();
 
-    if (pid > 0) {
+    if (pid > 0)
+    {
         // parent
-        char concat_str[100];
+        close(fwd[0]);
+        write(fwd[1], str, strlen(str)+1);
 
-        close(fd1[0]);
-        write(fd1[1], input_str, strlen(input_str)+1);
-        close(fd1[1]);
-        
-        wait(NULL);
-        
-        close(fd2[1]);
-        read(fd2[0], concat_str, 100);
-        printf("Concatenated string %s\n", concat_str);
-        close(fd2[0]);
-    } else if (pid == 0) {
-        // child
-        close(fd1[1]);
+        waitpid(pid, &status, 0);
 
-        char concat_str[100];
-        read(fd1[0], concat_str, 100);
-
-        int k = strlen(concat_str);
-        size_t i;
-        for (i=0; i<strlen(fixed_str); i++) {
-            concat_str[k++] = fixed_str[i];
-        }
-
-        concat_str[k] = '\0';
-
-        close(fd1[0]);
-        close(fd2[0]);
-
-        write(fd2[1], concat_str, strlen(concat_str) + 1);
-        close(fd2[1]);
-
+        close(bwd[1]);
+        read(bwd[0], buffer, sizeof(buffer));
+        printf("Received: \n%s", buffer);
         exit(0);
+    }
+    else
+    {
+        // child
+        close(fwd[1]);
+        
+        // read(fwd[0], buffer, sizeof(buffer));
+        // printf("Received: %s", buffer);
+
+        dup2(STDIN_FILENO, fwd[0]);
+        dup2(bwd[1], STDOUT_FILENO);
+
+        execlp("/bin/bash", "bash", NULL);
     }
 }
