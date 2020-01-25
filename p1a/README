@@ -1,3 +1,14 @@
+NAME: Jiaping Zeng
+EMAIL: jiapingzeng@ucla.edu
+ID: 905363270
+
+Included files:
+- lab1a.c: main program
+- Makefile:
+  - default: builds lab1a.c into executable lab1a
+  - clean: delete files created by Makefile
+  - dist: builds distribution tarball
+
 References:
 https://viewsourcecode.org/snaptoken/kilo/02.enteringRawMode.html
 https://www.gnu.org/software/libc/manual/html_node/Noncanon-Example.html
