@@ -152,9 +152,10 @@ void parse_options(int argc, char **argv, int *port)
     int c;
     static struct option long_options[] = {
         {"port", required_argument, NULL, 'p'},
+        {"compress", no_argument, &compress_flag, 'c'},
         {0, 0, 0, 0}};
 
-    while ((c = getopt_long(argc, argv, "p", long_options, NULL)) != -1)
+    while ((c = getopt_long(argc, argv, "pc", long_options, NULL)) != -1)
     {
         switch (c)
         {
