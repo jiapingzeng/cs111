@@ -44,7 +44,19 @@ int main(int argc, char **argv)
 
     newsfd = accept(sfd, (struct sockaddr *)&addr, (socklen_t *)&len);
     if_error(exitcode, "Accept failed");
+/*
+    int bytes_read;
+    char buffer[1024];
+    bytes_read = read(newsfd, &buffer, 1024);
+    if_error(bytes_read, "Unable to read from new socket");
 
+    write(STDOUT_FILENO, &buffer, bytes_read);
+
+    char *test = "\nServer test\n";
+    send(newsfd, test, strlen(test), 0);
+
+    printf("Server sent message successfully\n");
+*/
     exitcode = pipe(fwd);
     if_error(exitcode, "Forward pipe failed");
     exitcode = pipe(bwd);
@@ -93,7 +105,6 @@ int main(int argc, char **argv)
         exitcode = execl("/bin/bash", "bash", NULL);
         if_error(exitcode, "Execl failed");
     }
-
     exit(0);
 }
 
@@ -105,25 +116,27 @@ void read_data(int fd, __pid_t pid)
     if_error(bytes_read, "Unable to read buffer");
     if (fd == newsfd)
     {
-        for (i = 0; i < bytes_read; i++) {
-            switch (buffer[i]) {
-                case '\003':
-                    exitcode = kill(pid, SIGINT);
-                    if_error(exitcode, "Unable to kill child process");
-                    break;
-                case '\004':
-                    exitcode = close(fwd[1]);
-                    if_error(exitcode, "Unable to close write end of forward pipe");
-                    break;
-                case '\r':
-                case '\n':
-                    exitcode = write(fwd[1], "\n", 1);
-                    if_error(exitcode, "Unable to write forward pipe");
-                    break;
-                default:
-                    exitcode = write(fwd[1], &buffer[i], 1);
-                    if_error(exitcode, "Unable to write forward pipe");
-                    break;
+        for (i = 0; i < bytes_read; i++)
+        {
+            switch (buffer[i])
+            {
+            case '\003':
+                exitcode = kill(pid, SIGINT);
+                if_error(exitcode, "Unable to kill child process");
+                break;
+            case '\004':
+                exitcode = close(fwd[1]);
+                if_error(exitcode, "Unable to close write end of forward pipe");
+                break;
+            case '\r':
+            case '\n':
+                exitcode = write(fwd[1], "\n", 1);
+                if_error(exitcode, "Unable to write forward pipe");
+                break;
+            default:
+                exitcode = write(fwd[1], &buffer[i], 1);
+                if_error(exitcode, "Unable to write forward pipe");
+                break;
             }
         }
     }

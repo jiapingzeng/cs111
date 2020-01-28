@@ -86,12 +86,16 @@ void read_data(int fd)
             {
             case '\r':
             case '\n':
-                exitcode = write(sfd, "\r\n", 2);
-                if_error(exitcode, "Unable to write to socket\n");
+                exitcode = write(STDOUT_FILENO, "\r\n", 2);
+                if_error(exitcode, "Unable to write CRLF to stdout");
+                exitcode = write(sfd, "\n", 2);
+                if_error(exitcode, "Unable to write LF to socket");
                 break;
             default:
                 exitcode = write(STDOUT_FILENO, &buffer[i], 1);
-                if_error(exitcode, "Unable to write to stdout\n");
+                if_error(exitcode, "Unable to write to stdout");
+                exitcode = write(sfd, &buffer[i], 1);
+                if_error(exitcode, "Unable to write to socket");
                 break;
             }
         }
@@ -105,11 +109,12 @@ void read_data(int fd)
             case '\r':
             case '\n':
                 exitcode = write(STDOUT_FILENO, "\r\n", 2);
-                if_error(exitcode, "Unable to write to stdout\n");
+                if_error(exitcode, "Unable to write to stdout");
                 break;
             default:
                 exitcode = write(STDOUT_FILENO, &buffer[i], 1);
-                if_error(exitcode, "Unable to write to stdout\n");
+                if_error(exitcode, "Unable to write to stdout");
+
                 break;
             }
         }
