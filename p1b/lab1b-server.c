@@ -18,6 +18,7 @@ int exitcode, sfd, newsfd, fwd[2], bwd[2];
 void read_data(int fd, __pid_t pid);
 void parse_options(int argc, char **argv, int *port);
 void if_error(int error, char *message);
+void handle_shell_exit(int i);
 void handle_sigpipe();
 void handle_sigint();
 
@@ -87,7 +88,7 @@ int main(int argc, char **argv)
                 if (pfds[i].revents & POLLIN)
                     read_data(pfds[i].fd, pid);
                 if (pfds[i].revents & (POLLHUP | POLLERR))
-                    exit(0);
+                    handle_shell_exit(i);
             }
         }
     }
@@ -184,12 +185,31 @@ void if_error(int error, char *message)
     }
 }
 
-void handle_sigpipe() {
+void handle_sigpipe()
+{
     fprintf(stderr, "Caught SIGPIPE\n");
     exit(0);
 }
 
-void handle_sigint() {
+void handle_sigint()
+{
     exitcode = kill(pid, SIGINT);
     if_error(exitcode, "Unable to kill child process");
+}
+
+void handle_shell_exit(int i)
+{
+    int status;
+    if (i == 0)
+    {
+        exitcode = kill(pid, SIGINT);
+        if_error(exitcode, "Unable to kill child process");
+    }
+    exitcode = waitpid(pid, &status, 0);
+    if_error(exitcode, "Waitpid failed");
+    fprintf(stderr, "SHELL EXIT SIGNAL=%d, STATUS=%d\r\n", WTERMSIG(status), WEXITSTATUS(status));
+    close(bwd[0]);
+    close(sfd);
+    close(newsfd);
+    exit(0);
 }
