@@ -9,11 +9,12 @@
 #include <arpa/inet.h>
 #include <termios.h>
 #include <poll.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
-int exitcode;
-static int compress_flag;
+int exitcode, sfd, logfd;
+static int log_flag, compress_flag;
 struct termios oldconfig;
-int sfd;
 
 void read_data(int fd);
 void set_input_mode();
@@ -24,15 +25,16 @@ void if_error(int error, char *message);
 int main(int argc, char **argv)
 {
     int port;
-    char *log;
+    char *log_file;
 
-    parse_options(argc, argv, &port, &log);
+    parse_options(argc, argv, &port, &log_file);
     set_input_mode();
 
     int i;
     unsigned int len;
     struct sockaddr_in addr;
 
+    // set up socket
     sfd = socket(AF_INET, SOCK_STREAM, 0);
     if_error(sfd, "Unable to open socket");
 
@@ -46,11 +48,20 @@ int main(int argc, char **argv)
     exitcode = connect(sfd, (struct sockaddr *)&addr, (socklen_t)len);
     if_error(exitcode, "Connection failed");
 
+    // set up polls
     struct pollfd pfds[2];
     pfds[0].fd = STDIN_FILENO;
     pfds[1].fd = sfd;
     pfds[0].events = POLLIN | POLLHUP | POLLERR;
     pfds[1].events = POLLIN | POLLHUP | POLLERR;
+
+    // set up logging
+    if (log_flag)
+    {
+        mode_t creat_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH; // 644
+        logfd = open(log_file, O_WRONLY | O_CREAT | O_TRUNC, creat_mode);
+        if_error(logfd, "Unable to open/create log file");
+    }
 
     while (1)
     {
@@ -71,11 +82,11 @@ int main(int argc, char **argv)
     }
     exit(0);
 }
-
 void read_data(int fd)
 {
-    int i, bytes_read;
+    int i, bytes_read, log_count;
     char buffer[256];
+    char log_buffer[256];
     bytes_read = read(fd, buffer, 256);
     if_error(bytes_read, "Unable to read buffer");
     if (fd == STDIN_FILENO)
@@ -88,14 +99,26 @@ void read_data(int fd)
             case '\n':
                 exitcode = write(STDOUT_FILENO, "\r\n", 2);
                 if_error(exitcode, "Unable to write CRLF to stdout");
-                exitcode = write(sfd, "\n", 2);
+                exitcode = write(sfd, "\n", 1);
                 if_error(exitcode, "Unable to write LF to socket");
+                if (log_flag)
+                {
+                    dprintf(logfd, "SENT %d bytes: ", log_count);
+                    write(logfd, &log_buffer, log_count);
+                    write(logfd, "\n", 1);
+                    log_count = 0;
+                }
                 break;
             default:
                 exitcode = write(STDOUT_FILENO, &buffer[i], 1);
                 if_error(exitcode, "Unable to write to stdout");
                 exitcode = write(sfd, &buffer[i], 1);
                 if_error(exitcode, "Unable to write to socket");
+                if (log_flag)
+                {
+                    log_buffer[log_count] = buffer[i];
+                    log_count++;
+                }
                 break;
             }
         }
@@ -114,9 +137,14 @@ void read_data(int fd)
             default:
                 exitcode = write(STDOUT_FILENO, &buffer[i], 1);
                 if_error(exitcode, "Unable to write to stdout");
-
                 break;
             }
+        }
+        if (log_flag)
+        {
+            dprintf(logfd, "RECEIVED %d bytes: ", bytes_read);
+            write(logfd, &buffer, bytes_read);
+            write(logfd, "\n", 1);
         }
     }
 }
@@ -163,6 +191,7 @@ void parse_options(int argc, char **argv, int *port, char **log)
             *port = atoi(optarg);
             break;
         case 'l':
+            log_flag = 1;
             *log = optarg;
             break;
         case '?':

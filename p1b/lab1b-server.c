@@ -9,13 +9,17 @@
 #include <poll.h>
 #include <signal.h>
 #include <sys/wait.h>
+#include <signal.h>
 
+__pid_t pid;
 static int compress_flag;
 int exitcode, sfd, newsfd, fwd[2], bwd[2];
 
 void read_data(int fd, __pid_t pid);
 void parse_options(int argc, char **argv, int *port);
 void if_error(int error, char *message);
+void handle_sigpipe();
+void handle_sigint();
 
 int main(int argc, char **argv)
 {
@@ -24,6 +28,8 @@ int main(int argc, char **argv)
     parse_options(argc, argv, &port);
 
     printf("PORT: %d\n", port);
+
+    // set up sockets
 
     struct sockaddr_in addr;
     unsigned int len;
@@ -44,25 +50,19 @@ int main(int argc, char **argv)
 
     newsfd = accept(sfd, (struct sockaddr *)&addr, (socklen_t *)&len);
     if_error(exitcode, "Accept failed");
-/*
-    int bytes_read;
-    char buffer[1024];
-    bytes_read = read(newsfd, &buffer, 1024);
-    if_error(bytes_read, "Unable to read from new socket");
 
-    write(STDOUT_FILENO, &buffer, bytes_read);
+    // set up pipes
 
-    char *test = "\nServer test\n";
-    send(newsfd, test, strlen(test), 0);
-
-    printf("Server sent message successfully\n");
-*/
     exitcode = pipe(fwd);
     if_error(exitcode, "Forward pipe failed");
     exitcode = pipe(bwd);
     if_error(exitcode, "Backward pipe failed");
 
-    __pid_t pid = fork();
+    // set up signals
+    signal(SIGPIPE, handle_sigpipe);
+    signal(SIGINT, handle_sigint);
+
+    pid = fork();
     if_error(pid, "Fork failed");
     if (pid > 0)
     {
@@ -182,4 +182,14 @@ void if_error(int error, char *message)
         fprintf(stderr, "%s\n", message);
         exit(1);
     }
+}
+
+void handle_sigpipe() {
+    fprintf(stderr, "Caught SIGPIPE\n");
+    exit(0);
+}
+
+void handle_sigint() {
+    exitcode = kill(pid, SIGINT);
+    if_error(exitcode, "Unable to kill child process");
 }
