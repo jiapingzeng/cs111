@@ -3,5 +3,5 @@ lab1b-server
 *test*
 .vscode
 *.out
-*.sh
+functions.sh
 *.tar.gz

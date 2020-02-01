@@ -2,5 +2,5 @@ lab1a
 *test*
 .vscode
 *.out
-*.sh
+functions.sh
 *.tar.gz
