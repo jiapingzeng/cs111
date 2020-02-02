@@ -3,9 +3,14 @@ EMAIL: jiapingzeng@ucla.edu
 ID: 905363270
 
 Included files:
+- lab1b-client.c: client side of project; sends commands to server in character-at-a-time, no-echo mode. Includes options to specify port number (--port=PORT_NUMBER), log file (--log=FILE_NAME) and compression (--compress)
+- lab1b-server.c: server side of project; receives shell commands from client and returns output from child shell process. Includes options to specify port number (--port=PORT_NUMBER) and compression (--compress)
+- Makefile:
+  - default: builds lab1b-client.c and lab1b-server.c into executables lab1b-client and lab1b-server
+  - clean: delete files created by Makefile
+  - dist: builds distribution tarball
 
 References:
 https://www.geeksforgeeks.org/socket-programming-cc/
 http://www.cs.rpi.edu/~moorthy/Courses/os98/Pgms/socket.html
 https://zlib.net/zlib_how.html
-https://gist.github.com/arq5x/5315739
