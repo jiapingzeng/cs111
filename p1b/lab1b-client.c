@@ -11,16 +11,20 @@
 #include <poll.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include "zlib.h"
 
 int exitcode, sfd, logfd;
 static int log_flag, compress_flag;
 struct termios oldconfig;
+z_stream def_stream, inf_stream;
 
 void read_data(int fd);
 void set_input_mode();
-void reset_input_mode();
+void exit_cleanup();
 void parse_options(int argc, char **argv, int *port, char **log);
 void if_error(int error, char *message);
+int inf(char *src, char *dest);
+int def(char *src, char *dest);
 
 int main(int argc, char **argv)
 {
@@ -29,6 +33,7 @@ int main(int argc, char **argv)
 
     parse_options(argc, argv, &port, &log_file);
     set_input_mode();
+    atexit(exit_cleanup);
 
     int i;
     unsigned int len;
@@ -61,6 +66,20 @@ int main(int argc, char **argv)
         mode_t creat_mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH; // 644
         logfd = open(log_file, O_WRONLY | O_CREAT | O_TRUNC, creat_mode);
         if_error(logfd, "Unable to open/create log file");
+    }
+
+    // set up compression
+    if (compress_flag) {
+        def_stream.zalloc = Z_NULL;
+        def_stream.zfree = Z_NULL;
+        def_stream.opaque = Z_NULL;
+        exitcode = deflateInit(&def_stream, Z_DEFAULT_COMPRESSION);
+        if_error(exitcode, "Deflate init failed");
+        inf_stream.zalloc = Z_NULL;
+        inf_stream.zfree = Z_NULL;
+        inf_stream.opaque = Z_NULL;
+        exitcode = inflateInit(&inf_stream);
+        if_error(exitcode, "Inflate init failed");
     }
 
     while (1)
@@ -155,7 +174,6 @@ void set_input_mode()
     // set input mode
     exitcode = tcgetattr(STDIN_FILENO, &oldconfig);
     if_error(exitcode, "Unable to get terminal parameters");
-    atexit(reset_input_mode);
     exitcode = tcgetattr(STDIN_FILENO, &newconfig);
     if_error(exitcode, "Unable to get terminal parameters");
     newconfig.c_iflag = ISTRIP;
@@ -165,10 +183,19 @@ void set_input_mode()
     if_error(exitcode, "Unable to set terminal parameters");
 }
 
-void reset_input_mode()
+void exit_cleanup()
 {
+    // reset input mode
     exitcode = tcsetattr(STDIN_FILENO, TCSANOW, &oldconfig);
     if_error(exitcode, "Unable to set terminal parameters");
+
+    // deflate zstreams
+    if (compress_flag) {
+        exitcode = deflateEnd(&def_stream);
+        if_error(exitcode, "Deflate forward stream failed");
+        exitcode = deflateEnd(&inf_stream);
+        if_error(exitcode, "Deflate backward stream failed");
+    }
 }
 
 void parse_options(int argc, char **argv, int *port, char **log)
@@ -211,4 +238,24 @@ void if_error(int error, char *message)
         fprintf(stderr, "%s\n", message);
         exit(1);
     }
+}
+
+int def(char *src, char *dest) {
+    def_stream.avail_in = (uInt)strlen(src)+1;
+    def_stream.next_in = (Bytef *)src;
+    def_stream.avail_out = (uInt)sizeof(dest);
+    def_stream.next_out = (Bytef *)dest;
+
+    deflateInit(&def_stream, Z_DEFAULT_COMPRESSION);
+    deflate(&def_stream, Z_SYNC_FLUSH);
+}
+
+int inf(char *src, char *dest) {
+    inf_stream.avail_in = (uInt)((char*)def_stream.next_out - src);
+    inf_stream.next_in = (Bytef *)src;
+    inf_stream.avail_out = (uInt)sizeof(dest);
+    inf_stream.next_out = (Bytef *)dest;
+
+    inflateInit(&inf_stream);
+    inflate(&inf_stream, Z_SYNC_FLUSH);
 }

@@ -10,6 +10,7 @@
 #include <signal.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include "zlib.h"
 
 __pid_t pid;
 static int compress_flag;
