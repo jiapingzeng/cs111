@@ -1,3 +1,7 @@
+// NAME: Jiaping Zeng
+// EMAIL: jiapingzeng@ucla.edu
+// ID: 905363270
+
 #include <unistd.h>
 #include <getopt.h>
 #include <stdio.h>
@@ -23,16 +27,16 @@ void read_data(int fd, __pid_t pid);
 int def(char *src, char *dest, int src_size, int dest_size);
 int inf(char *src, char *dest, int src_size, int dest_size);
 void parse_options(int argc, char **argv, int *port);
+void initialize();
+void exit_cleanup();
 void if_error(int error, char *message);
 void handle_sigpipe();
 void handle_sigint();
-void exit_cleanup();
-void init();
 
 int main(int argc, char **argv)
 {
     parse_options(argc, argv, &port);
-    init();
+    initialize();
 
     printf("PORT: %d\n", port);
 
@@ -41,8 +45,9 @@ int main(int argc, char **argv)
     if (pid > 0)
     {
         // parent (terminal)
-        unsigned int i;
+        int i;
         struct pollfd pfds[2];
+        
         exitcode = close(fwd[0]);
         if_error(exitcode, "Unable to close read end of forward pipe");
         exitcode = close(bwd[1]);
@@ -85,7 +90,7 @@ int main(int argc, char **argv)
 
 void read_data(int fd, __pid_t pid)
 {
-    unsigned int i, bytes_read;
+    int i, bytes_read;
     char buffer[BUFFER_SIZE], cbuffer[BUFFER_SIZE];
     bytes_read = read(fd, buffer, BUFFER_SIZE);
     if_error(bytes_read, "Unable to read buffer");
@@ -190,7 +195,7 @@ void parse_options(int argc, char **argv, int *port)
     }
 }
 
-void init()
+void initialize()
 {
     // set up compression
     if (compress_flag)
@@ -209,7 +214,7 @@ void init()
 
     // set up sockets
     struct sockaddr_in addr;
-    unsigned int len;
+    int len;
     sfd = socket(AF_INET, SOCK_STREAM, 0);
     if_error(sfd, "Unable to open socket");
     addr.sin_family = AF_INET;

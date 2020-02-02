@@ -1,3 +1,7 @@
+// NAME: Jiaping Zeng
+// EMAIL: jiapingzeng@ucla.edu
+// ID: 905363270
+
 #include <unistd.h>
 #include <getopt.h>
 #include <stdio.h>
@@ -21,37 +25,21 @@ struct termios oldconfig;
 z_stream def_stream, inf_stream;
 
 void read_data(int fd);
-void set_input_mode();
-void exit_cleanup();
 void parse_options(int argc, char **argv, int *port, char **log);
 void if_error(int error, char *message);
+void initialize();
+void terminate();
 int inf(char *src, char *dest, int src_size, int dest_size);
 int def(char *src, char *dest, int src_size, int dest_size);
 
 int main(int argc, char **argv)
 {
     char *log_file;
+    int i;
 
     parse_options(argc, argv, &port, &log_file);
-    set_input_mode();
-    atexit(exit_cleanup);
-
-    int i, len;
-    struct sockaddr_in addr;
-
-    // set up socket
-    sfd = socket(AF_INET, SOCK_STREAM, 0);
-    if_error(sfd, "Unable to open socket");
-
-    addr.sin_family = AF_INET;
-    addr.sin_port = htons(port);
-    len = sizeof(addr);
-
-    exitcode = inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
-    if_error(exitcode, "Address not supported");
-
-    exitcode = connect(sfd, (struct sockaddr *)&addr, (socklen_t)len);
-    if_error(exitcode, "Connection failed");
+    initialize();
+    atexit(terminate);
 
     // set up polls
     struct pollfd pfds[2];
@@ -68,21 +56,6 @@ int main(int argc, char **argv)
         if_error(logfd, "Unable to open/create log file");
     }
 
-    // set up compression
-    if (compress_flag)
-    {
-        def_stream.zalloc = Z_NULL;
-        def_stream.zfree = Z_NULL;
-        def_stream.opaque = Z_NULL;
-        exitcode = deflateInit(&def_stream, Z_DEFAULT_COMPRESSION);
-        if_error(exitcode, "Deflate init failed");
-        inf_stream.zalloc = Z_NULL;
-        inf_stream.zfree = Z_NULL;
-        inf_stream.opaque = Z_NULL;
-        exitcode = inflateInit(&inf_stream);
-        if_error(exitcode, "Inflate init failed");
-    }
-
     while (1)
     {
         exitcode = poll(pfds, 2, 0);
@@ -95,7 +68,7 @@ int main(int argc, char **argv)
             }
             if (pfds[i].revents & (POLLHUP | POLLERR))
             {
-                fprintf(stderr, "Client poll error\n");
+                fprintf(stderr, "Poll error\n");
                 exit(1);
             }
         }
@@ -163,6 +136,10 @@ void read_data(int fd)
     }
     else
     {
+        if (bytes_read == 0)
+        {
+            exit(1);
+        }
         if (log_flag)
         {
             dprintf(logfd, "RECEIVED %d bytes: ", bytes_read);
@@ -192,10 +169,10 @@ void read_data(int fd)
     }
 }
 
-void set_input_mode()
+void initialize()
 {
+    // set up input mode
     struct termios newconfig;
-    // set input mode
     exitcode = tcgetattr(STDIN_FILENO, &oldconfig);
     if_error(exitcode, "Unable to get terminal parameters");
     exitcode = tcgetattr(STDIN_FILENO, &newconfig);
@@ -205,9 +182,37 @@ void set_input_mode()
     newconfig.c_lflag = 0;
     exitcode = tcsetattr(STDIN_FILENO, TCSANOW, &newconfig);
     if_error(exitcode, "Unable to set terminal parameters");
+
+    // set up socket
+    int len;
+    struct sockaddr_in addr;
+    sfd = socket(AF_INET, SOCK_STREAM, 0);
+    if_error(sfd, "Unable to open socket");
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    len = sizeof(addr);
+    exitcode = inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
+    if_error(exitcode, "Address not supported");
+    exitcode = connect(sfd, (struct sockaddr *)&addr, (socklen_t)len);
+    if_error(exitcode, "Connection failed");
+
+    // set up compression
+    if (compress_flag)
+    {
+        def_stream.zalloc = Z_NULL;
+        def_stream.zfree = Z_NULL;
+        def_stream.opaque = Z_NULL;
+        exitcode = deflateInit(&def_stream, Z_DEFAULT_COMPRESSION);
+        if_error(exitcode, "Deflate init failed");
+        inf_stream.zalloc = Z_NULL;
+        inf_stream.zfree = Z_NULL;
+        inf_stream.opaque = Z_NULL;
+        exitcode = inflateInit(&inf_stream);
+        if_error(exitcode, "Inflate init failed");
+    }
 }
 
-void exit_cleanup()
+void terminate()
 {
     // reset input mode
     exitcode = tcsetattr(STDIN_FILENO, TCSANOW, &oldconfig);
@@ -216,10 +221,8 @@ void exit_cleanup()
     // deflate zstreams
     if (compress_flag)
     {
-        exitcode = deflateEnd(&def_stream);
-        if_error(exitcode, "Deflate forward stream failed");
-        exitcode = deflateEnd(&inf_stream);
-        if_error(exitcode, "Deflate backward stream failed");
+        deflateEnd(&def_stream);
+        deflateEnd(&inf_stream);
     }
 }
 
