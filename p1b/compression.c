@@ -15,38 +15,27 @@ int main()
     init();
     atexit(cleanup);
 
-    char *a = "h";
+    char a[50] = "sendingsendingsendingsendingsending";
     char b[50], c[50];
-    unsigned long size = 0;
+    long size = 0;
 
-    printf("Uncompressed: %s, length: %lu\n", a, strlen(a));
+    write(STDOUT_FILENO, a, strlen(a));
+    write(STDOUT_FILENO, "\n", 1);
+    printf("length: %ld\n", strlen(a));
 
-    //size = def(a, b, 50, 50);
+    size = def(a, b, strlen(a), 50);
+    printf("\nsize: %ld\n", size);
 
-    def_stream.avail_in = (uInt)strlen(a) + 1;
-    def_stream.next_in = (Bytef *)a;
-    def_stream.avail_out = (uInt)sizeof(b);
-    def_stream.next_out = (Bytef *)b;
-    deflate(&def_stream, Z_SYNC_FLUSH);
-    do
-    {
-        deflate(&def_stream, Z_SYNC_FLUSH);
-    } while (def_stream.avail_in > 0);
+    write(STDOUT_FILENO, b, def_stream.total_out);
+    write(STDOUT_FILENO, "\n", 1);
+    printf("length: %ld\n", def_stream.total_out);
 
-    printf("Compressed: %s, length: %lu\n", b, strlen(b));
+    size = inf(b, c, def_stream.total_out, 50);
+    printf("\nsize: %ld\n", size);
 
-    //size = inf(b, c, 50, 50);
-
-    inf_stream.avail_in = (uInt)((char *)def_stream.next_out - b);
-    inf_stream.next_in = (Bytef *)b;
-    inf_stream.avail_out = (uInt)sizeof(c);
-    inf_stream.next_out = (Bytef *)c;
-    do
-    {
-        inflate(&inf_stream, Z_SYNC_FLUSH);
-    } while (inf_stream.avail_in > 0);
-
-    printf("Decompressed: %s, length: %lu\n", c, strlen(c));
+    write(STDOUT_FILENO, c, inf_stream.total_out);
+    write(STDOUT_FILENO, "\n", 1);
+    printf("length: %ld\n", inf_stream.total_out);
 
     return 0;
 }
@@ -54,27 +43,27 @@ int main()
 int def(char *src, char *dest, int src_size, int dest_size)
 {
     def_stream.avail_in = (uInt)src_size;
-    def_stream.next_in = (Bytef *)dest;
+    def_stream.next_in = (Bytef *)src;
     def_stream.avail_out = (uInt)dest_size;
-    def_stream.next_out = (Bytef *)src;
-
+    def_stream.next_out = (Bytef *)dest;
     do
     {
         deflate(&def_stream, Z_SYNC_FLUSH);
     } while (def_stream.avail_in > 0);
-
-    return dest_size - def_stream.avail_out;
+    return def_stream.total_out;
 }
 
 int inf(char *src, char *dest, int src_size, int dest_size)
 {
     inf_stream.avail_in = (uInt)src_size;
-    inf_stream.next_in = (Bytef *)dest;
+    inf_stream.next_in = (Bytef *)src;
     inf_stream.avail_out = (uInt)dest_size;
-    inf_stream.next_out = (Bytef *)src;
-    inflate(&inf_stream, Z_SYNC_FLUSH);
-
-    return dest_size - inf_stream.avail_out;
+    inf_stream.next_out = (Bytef *)dest;
+    do
+    {
+        inflate(&inf_stream, Z_SYNC_FLUSH);
+    } while (inf_stream.avail_in > 0);
+    return inf_stream.total_out;
 }
 
 void init()

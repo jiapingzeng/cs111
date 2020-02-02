@@ -13,7 +13,9 @@
 #include <fcntl.h>
 #include "zlib.h"
 
-int exitcode, sfd, logfd;
+#define BUFFER_SIZE 256
+
+int port, exitcode, sfd, logfd;
 static int log_flag, compress_flag;
 struct termios oldconfig;
 z_stream def_stream, inf_stream;
@@ -23,20 +25,18 @@ void set_input_mode();
 void exit_cleanup();
 void parse_options(int argc, char **argv, int *port, char **log);
 void if_error(int error, char *message);
-int inf(char *src, char *dest, int src_size);
-int def(char *src, char *dest, int src_size);
+int inf(char *src, char *dest, int src_size, int dest_size);
+int def(char *src, char *dest, int src_size, int dest_size);
 
 int main(int argc, char **argv)
 {
-    int port;
     char *log_file;
 
     parse_options(argc, argv, &port, &log_file);
     set_input_mode();
     atexit(exit_cleanup);
 
-    unsigned int i;
-    unsigned int len;
+    int i, len;
     struct sockaddr_in addr;
 
     // set up socket
@@ -105,9 +105,9 @@ int main(int argc, char **argv)
 
 void read_data(int fd)
 {
-    unsigned int i, bytes_read, bytes_compressed;
-    char buffer[256], compressed[256];
-    bytes_read = read(fd, buffer, 256);
+    int i, bytes_read, bytes_compressed;
+    char buffer[BUFFER_SIZE], cbuffer[BUFFER_SIZE];
+    bytes_read = read(fd, buffer, BUFFER_SIZE);
     if_error(bytes_read, "Unable to read buffer");
     if (fd == STDIN_FILENO)
     {
@@ -121,13 +121,8 @@ void read_data(int fd)
                 if_error(exitcode, "Unable to write CRLF to stdout");
                 if (compress_flag)
                 {
-                    def_stream.avail_in = (uInt)strlen("\n") + 1;
-                    def_stream.next_in = (Bytef *)"\n";
-                    def_stream.avail_out = (uInt)sizeof(compressed);
-                    def_stream.next_out = (Bytef *)compressed;
-                    deflate(&def_stream, Z_SYNC_FLUSH);
-                    bytes_compressed = strlen(compressed);
-                    write(sfd, compressed, bytes_compressed);
+                    bytes_compressed = def("\n", cbuffer, 1, BUFFER_SIZE);
+                    write(sfd, &cbuffer, bytes_compressed);
                 }
                 else
                 {
@@ -140,13 +135,8 @@ void read_data(int fd)
                 if_error(exitcode, "Unable to write to stdout");
                 if (compress_flag)
                 {
-                    def_stream.avail_in = (uInt)strlen(&buffer[i]) + 1;
-                    def_stream.next_in = (Bytef *)&buffer[i];
-                    def_stream.avail_out = (uInt)sizeof(compressed);
-                    def_stream.next_out = (Bytef *)compressed;
-                    deflate(&def_stream, Z_SYNC_FLUSH);
-                    bytes_compressed = strlen(compressed);
-                    write(sfd, compressed, bytes_compressed);
+                    bytes_compressed = def(&buffer[i], cbuffer, 1, BUFFER_SIZE);
+                    write(sfd, &cbuffer, bytes_compressed);
                 }
                 else
                 {
@@ -161,7 +151,7 @@ void read_data(int fd)
             if (compress_flag)
             {
                 dprintf(logfd, "SENT %d bytes: ", bytes_compressed);
-                write(logfd, &compressed, bytes_compressed);
+                write(logfd, &cbuffer, bytes_compressed);
             }
             else
             {
@@ -173,22 +163,18 @@ void read_data(int fd)
     }
     else
     {
-        if (compress_flag)
-        {
-            memcpy(compressed, buffer, bytes_read);
-            inf_stream.avail_in = (uInt)((char *)def_stream.next_out - compressed);
-            inf_stream.next_in = (Bytef *)compressed;
-            inf_stream.avail_out = (uInt)sizeof(buffer);
-            inf_stream.next_out = (Bytef *)buffer;
-            inflate(&inf_stream, Z_SYNC_FLUSH);
-        }
         if (log_flag)
         {
             dprintf(logfd, "RECEIVED %d bytes: ", bytes_read);
             write(logfd, &buffer, bytes_read);
             write(logfd, "\n", 1);
         }
-        for (i = 0; i < strlen(buffer); i++)
+        if (compress_flag)
+        {
+            memcpy(cbuffer, buffer, bytes_read);
+            bytes_read = inf(cbuffer, buffer, bytes_read, BUFFER_SIZE);
+        }
+        for (i = 0; i < bytes_read; i++)
         {
             switch (buffer[i])
             {
@@ -279,28 +265,28 @@ void if_error(int error, char *message)
     }
 }
 
-int def(char *src, char *dest, int src_size)
+int def(char *src, char *dest, int src_size, int dest_size)
 {
     def_stream.avail_in = (uInt)src_size;
-    def_stream.next_in = (Bytef *)dest;
-    def_stream.avail_out = (uInt)sizeof(dest);
-    def_stream.next_out = (Bytef *)src;
-
-    exitcode = deflate(&def_stream, Z_SYNC_FLUSH);
-    if_error(exitcode, "Deflation failed");
-
-    return sizeof(dest) - def_stream.avail_out;
+    def_stream.next_in = (Bytef *)src;
+    def_stream.avail_out = (uInt)dest_size;
+    def_stream.next_out = (Bytef *)dest;
+    do
+    {
+        deflate(&def_stream, Z_SYNC_FLUSH);
+    } while (def_stream.avail_in > 0);
+    return dest_size - def_stream.avail_out;
 }
 
-int inf(char *src, char *dest, int src_size)
+int inf(char *src, char *dest, int src_size, int dest_size)
 {
     inf_stream.avail_in = (uInt)src_size;
-    inf_stream.next_in = (Bytef *)dest;
-    inf_stream.avail_out = (uInt)sizeof(dest);
-    inf_stream.next_out = (Bytef *)src;
-
-    exitcode = inflate(&inf_stream, Z_SYNC_FLUSH);
-    if_error(exitcode, "Inflation failed");
-
-    return sizeof(dest) - inf_stream.avail_out;
+    inf_stream.next_in = (Bytef *)src;
+    inf_stream.avail_out = (uInt)dest_size;
+    inf_stream.next_out = (Bytef *)dest;
+    do
+    {
+        inflate(&inf_stream, Z_SYNC_FLUSH);
+    } while (inf_stream.avail_in > 0);
+    return dest_size - inf_stream.avail_out;
 }
