@@ -17,10 +17,10 @@ dist: lab1b-905363270.tar.gz
 lab1b: lab1b-client lab1b-server
 
 lab1b-client:
-	$(CC) $(CFLAGS) lab1b-client.c -o $@
+	$(CC) lab1b-client.c -o $@ $(CFLAGS)
 
 lab1b-server:
-	$(CC) $(CFLAGS) lab1b-server.c -o $@
+	$(CC) lab1b-server.c -o $@ $(CFLAGS)
 
 lab1b-905363270.tar.gz:
 	tar -czf $@ $(dist_files)

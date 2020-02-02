@@ -15,6 +15,7 @@
 __pid_t pid;
 static int compress_flag;
 int exitcode, sfd, newsfd, fwd[2], bwd[2];
+z_stream def_stream, inf_stream;
 
 void read_data(int fd, __pid_t pid);
 void parse_options(int argc, char **argv, int *port);
@@ -22,6 +23,7 @@ void if_error(int error, char *message);
 void handle_shell_exit(int i);
 void handle_sigpipe();
 void handle_sigint();
+void exit_cleanup();
 
 int main(int argc, char **argv)
 {
@@ -31,30 +33,38 @@ int main(int argc, char **argv)
 
     printf("PORT: %d\n", port);
 
-    // set up sockets
+    // set up compression
+    if (compress_flag)
+    {
+        def_stream.zalloc = Z_NULL;
+        def_stream.zfree = Z_NULL;
+        def_stream.opaque = Z_NULL;
+        exitcode = deflateInit(&def_stream, Z_DEFAULT_COMPRESSION);
+        if_error(exitcode, "Deflate init failed");
+        inf_stream.zalloc = Z_NULL;
+        inf_stream.zfree = Z_NULL;
+        inf_stream.opaque = Z_NULL;
+        exitcode = inflateInit(&inf_stream);
+        if_error(exitcode, "Inflate init failed");
+    }
 
+    // set up sockets
     struct sockaddr_in addr;
     unsigned int len;
-
     sfd = socket(AF_INET, SOCK_STREAM, 0);
     if_error(sfd, "Unable to open socket");
-
     addr.sin_family = AF_INET;
     addr.sin_addr.s_addr = INADDR_ANY;
     addr.sin_port = htons(port);
     len = sizeof(addr);
-
     exitcode = bind(sfd, (struct sockaddr *)&addr, sizeof(addr));
     if_error(exitcode, "Bind failed");
-
     exitcode = listen(sfd, 5);
     if_error(exitcode, "Listen failed");
-
     newsfd = accept(sfd, (struct sockaddr *)&addr, (socklen_t *)&len);
     if_error(exitcode, "Accept failed");
 
     // set up pipes
-
     exitcode = pipe(fwd);
     if_error(exitcode, "Forward pipe failed");
     exitcode = pipe(bwd);
@@ -68,7 +78,7 @@ int main(int argc, char **argv)
     if_error(pid, "Fork failed");
     if (pid > 0)
     {
-        int i;
+        unsigned int i;
         struct pollfd pfds[2];
         exitcode = close(fwd[0]);
         if_error(exitcode, "Unable to close read end of forward pipe");
@@ -112,13 +122,22 @@ int main(int argc, char **argv)
 
 void read_data(int fd, __pid_t pid)
 {
-    int i, bytes_read;
-    char buffer[256];
+    unsigned int i, bytes_read, bytes_compressed;
+    char buffer[256], compressed[256];
     bytes_read = read(fd, buffer, 256);
     if_error(bytes_read, "Unable to read buffer");
     if (fd == newsfd)
     {
-        for (i = 0; i < bytes_read; i++)
+        if (compress_flag)
+        {
+            memcpy(compressed, buffer, bytes_read);
+            inf_stream.avail_in = (uInt)((char *)def_stream.next_out - compressed);
+            inf_stream.next_in = (Bytef *)compressed;
+            inf_stream.avail_out = (uInt)sizeof(buffer);
+            inf_stream.next_out = (Bytef *)buffer;
+            inflate(&inf_stream, Z_SYNC_FLUSH);
+        }
+        for (i = 0; i < strlen(buffer); i++)
         {
             switch (buffer[i])
             {
@@ -132,10 +151,14 @@ void read_data(int fd, __pid_t pid)
                 break;
             case '\r':
             case '\n':
+                exitcode = write(STDOUT_FILENO, "\n", 1);
+                if_error(exitcode, "Unable to write LF to stdout");
                 exitcode = write(fwd[1], "\n", 1);
-                if_error(exitcode, "Unable to write forward pipe");
+                if_error(exitcode, "Unable to write LF toforward pipe");
                 break;
             default:
+                exitcode = write(STDOUT_FILENO, &buffer[i], 1);
+                if_error(exitcode, "Unable to write to stdout");
                 exitcode = write(fwd[1], &buffer[i], 1);
                 if_error(exitcode, "Unable to write forward pipe");
                 break;
@@ -144,8 +167,21 @@ void read_data(int fd, __pid_t pid)
     }
     else
     {
-        exitcode = write(newsfd, &buffer, bytes_read);
-        if_error(bytes_read, "Unable to write to new socket file descriptor");
+        if (compress_flag)
+        {
+            def_stream.avail_in = (uInt)strlen(buffer) + 1;
+            def_stream.next_in = (Bytef *)buffer;
+            def_stream.avail_out = (uInt)sizeof(compressed);
+            def_stream.next_out = (Bytef *)compressed;
+            deflate(&def_stream, Z_SYNC_FLUSH);
+            bytes_compressed = strlen(compressed);
+            write(newsfd, compressed, bytes_compressed);
+        }
+        else
+        {
+            exitcode = write(newsfd, &buffer, bytes_read);
+            if_error(bytes_read, "Unable to write to new socket file descriptor");
+        }
     }
 }
 
@@ -213,4 +249,16 @@ void handle_shell_exit(int i)
     close(sfd);
     close(newsfd);
     exit(0);
+}
+
+void exit_cleanup()
+{
+    // deflate zstreams
+    if (compress_flag)
+    {
+        exitcode = deflateEnd(&def_stream);
+        if_error(exitcode, "Deflate forward stream failed");
+        exitcode = deflateEnd(&inf_stream);
+        if_error(exitcode, "Deflate backward stream failed");
+    }
 }

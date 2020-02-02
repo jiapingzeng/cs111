@@ -23,8 +23,8 @@ void set_input_mode();
 void exit_cleanup();
 void parse_options(int argc, char **argv, int *port, char **log);
 void if_error(int error, char *message);
-int inf(char *src, char *dest);
-int def(char *src, char *dest);
+int inf(char *src, char *dest, int src_size);
+int def(char *src, char *dest, int src_size);
 
 int main(int argc, char **argv)
 {
@@ -35,7 +35,7 @@ int main(int argc, char **argv)
     set_input_mode();
     atexit(exit_cleanup);
 
-    int i;
+    unsigned int i;
     unsigned int len;
     struct sockaddr_in addr;
 
@@ -69,7 +69,8 @@ int main(int argc, char **argv)
     }
 
     // set up compression
-    if (compress_flag) {
+    if (compress_flag)
+    {
         def_stream.zalloc = Z_NULL;
         def_stream.zfree = Z_NULL;
         def_stream.opaque = Z_NULL;
@@ -101,11 +102,11 @@ int main(int argc, char **argv)
     }
     exit(0);
 }
+
 void read_data(int fd)
 {
-    int i, bytes_read, log_count;
-    char buffer[256];
-    char log_buffer[256];
+    unsigned int i, bytes_read, bytes_compressed;
+    char buffer[256], compressed[256];
     bytes_read = read(fd, buffer, 256);
     if_error(bytes_read, "Unable to read buffer");
     if (fd == STDIN_FILENO)
@@ -118,33 +119,76 @@ void read_data(int fd)
             case '\n':
                 exitcode = write(STDOUT_FILENO, "\r\n", 2);
                 if_error(exitcode, "Unable to write CRLF to stdout");
-                exitcode = write(sfd, "\n", 1);
-                if_error(exitcode, "Unable to write LF to socket");
-                if (log_flag)
+                if (compress_flag)
                 {
-                    dprintf(logfd, "SENT %d bytes: ", log_count);
-                    write(logfd, &log_buffer, log_count);
-                    write(logfd, "\n", 1);
-                    log_count = 0;
+                    def_stream.avail_in = (uInt)strlen("\n") + 1;
+                    def_stream.next_in = (Bytef *)"\n";
+                    def_stream.avail_out = (uInt)sizeof(compressed);
+                    def_stream.next_out = (Bytef *)compressed;
+                    deflate(&def_stream, Z_SYNC_FLUSH);
+                    bytes_compressed = strlen(compressed);
+                    write(sfd, compressed, bytes_compressed);
+                }
+                else
+                {
+                    exitcode = write(sfd, "\n", 1);
+                    if_error(exitcode, "Unable to write LF to socket");
                 }
                 break;
             default:
                 exitcode = write(STDOUT_FILENO, &buffer[i], 1);
                 if_error(exitcode, "Unable to write to stdout");
-                exitcode = write(sfd, &buffer[i], 1);
-                if_error(exitcode, "Unable to write to socket");
-                if (log_flag)
+                if (compress_flag)
                 {
-                    log_buffer[log_count] = buffer[i];
-                    log_count++;
+                    def_stream.avail_in = (uInt)strlen(&buffer[i]) + 1;
+                    def_stream.next_in = (Bytef *)&buffer[i];
+                    def_stream.avail_out = (uInt)sizeof(compressed);
+                    def_stream.next_out = (Bytef *)compressed;
+                    deflate(&def_stream, Z_SYNC_FLUSH);
+                    bytes_compressed = strlen(compressed);
+                    write(sfd, compressed, bytes_compressed);
+                }
+                else
+                {
+                    exitcode = write(sfd, &buffer[i], 1);
+                    if_error(exitcode, "Unable to write to socket");
                 }
                 break;
             }
         }
+        if (log_flag)
+        {
+            if (compress_flag)
+            {
+                dprintf(logfd, "SENT %d bytes: ", bytes_compressed);
+                write(logfd, &compressed, bytes_compressed);
+            }
+            else
+            {
+                dprintf(logfd, "SENT %d bytes: ", bytes_read);
+                write(logfd, &buffer, bytes_read);
+            }
+            write(logfd, "\n", 1);
+        }
     }
     else
     {
-        for (i = 0; i < bytes_read; i++)
+        if (compress_flag)
+        {
+            memcpy(compressed, buffer, bytes_read);
+            inf_stream.avail_in = (uInt)((char *)def_stream.next_out - compressed);
+            inf_stream.next_in = (Bytef *)compressed;
+            inf_stream.avail_out = (uInt)sizeof(buffer);
+            inf_stream.next_out = (Bytef *)buffer;
+            inflate(&inf_stream, Z_SYNC_FLUSH);
+        }
+        if (log_flag)
+        {
+            dprintf(logfd, "RECEIVED %d bytes: ", bytes_read);
+            write(logfd, &buffer, bytes_read);
+            write(logfd, "\n", 1);
+        }
+        for (i = 0; i < strlen(buffer); i++)
         {
             switch (buffer[i])
             {
@@ -158,12 +202,6 @@ void read_data(int fd)
                 if_error(exitcode, "Unable to write to stdout");
                 break;
             }
-        }
-        if (log_flag)
-        {
-            dprintf(logfd, "RECEIVED %d bytes: ", bytes_read);
-            write(logfd, &buffer, bytes_read);
-            write(logfd, "\n", 1);
         }
     }
 }
@@ -190,7 +228,8 @@ void exit_cleanup()
     if_error(exitcode, "Unable to set terminal parameters");
 
     // deflate zstreams
-    if (compress_flag) {
+    if (compress_flag)
+    {
         exitcode = deflateEnd(&def_stream);
         if_error(exitcode, "Deflate forward stream failed");
         exitcode = deflateEnd(&inf_stream);
@@ -240,22 +279,28 @@ void if_error(int error, char *message)
     }
 }
 
-int def(char *src, char *dest) {
-    def_stream.avail_in = (uInt)strlen(src)+1;
-    def_stream.next_in = (Bytef *)src;
+int def(char *src, char *dest, int src_size)
+{
+    def_stream.avail_in = (uInt)src_size;
+    def_stream.next_in = (Bytef *)dest;
     def_stream.avail_out = (uInt)sizeof(dest);
-    def_stream.next_out = (Bytef *)dest;
+    def_stream.next_out = (Bytef *)src;
 
-    deflateInit(&def_stream, Z_DEFAULT_COMPRESSION);
-    deflate(&def_stream, Z_SYNC_FLUSH);
+    exitcode = deflate(&def_stream, Z_SYNC_FLUSH);
+    if_error(exitcode, "Deflation failed");
+
+    return sizeof(dest) - def_stream.avail_out;
 }
 
-int inf(char *src, char *dest) {
-    inf_stream.avail_in = (uInt)((char*)def_stream.next_out - src);
-    inf_stream.next_in = (Bytef *)src;
+int inf(char *src, char *dest, int src_size)
+{
+    inf_stream.avail_in = (uInt)src_size;
+    inf_stream.next_in = (Bytef *)dest;
     inf_stream.avail_out = (uInt)sizeof(dest);
-    inf_stream.next_out = (Bytef *)dest;
+    inf_stream.next_out = (Bytef *)src;
 
-    inflateInit(&inf_stream);
-    inflate(&inf_stream, Z_SYNC_FLUSH);
+    exitcode = inflate(&inf_stream, Z_SYNC_FLUSH);
+    if_error(exitcode, "Inflation failed");
+
+    return sizeof(dest) - inf_stream.avail_out;
 }
