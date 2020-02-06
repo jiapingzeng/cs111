@@ -4,7 +4,7 @@
 
 dist_files = *.png *.jpg Makefile README
 
-default: dist_files
+default: dist
 
 dist: lab4a-905363270.tar.gz
 
