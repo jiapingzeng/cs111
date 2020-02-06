@@ -8,30 +8,54 @@
 #include <sys/resource.h>
 
 int threads = 1, iterations = 1;
+long long counter = 0;
 
 void add(long long *pointer, long long value);
+void *thread_routine(void *ptr);
 void parse_options(int argc, char **argv);
 
 int main(int argc, char **argv)
 {
-    long long counter = 0;
-    int i, total;
+    parse_options(argc, argv);
+
+    int i;
+    long operations;
     struct timespec start, finish;
-    pthread_t tid;
+    pthread_t tids[threads];
 
     clock_gettime(CLOCK_REALTIME, &start);
 
-    for (i = 0; i < threads; i++) {
-        pthread_create(&tid, NULL, NULL, NULL);
+    for (i = 0; i < threads; i++)
+    {
+        pthread_create(&tids[i], NULL, thread_routine, &counter);
     }
-    pthread_exit(NULL);
+
+    for (i = 0; i < threads; i++)
+    {
+        pthread_join(tids[i], NULL);
+    }
 
     clock_gettime(CLOCK_REALTIME, &finish);
+
     operations = threads * iterations * 2;
     long long time = (finish.tv_sec - start.tv_sec) * 1000000000 + (finish.tv_nsec - start.tv_nsec); // in nanoseconds
-    printf("add-none,%d,%d,%lld,%lld,%lld,%d", threads, iterations, operations, time, time / operations, total);
+    printf("add-none,%d,%d,%ld,%lld,%lld,%lld\n", threads, iterations, operations, time, time / operations, counter);
 
     exit(0);
+}
+
+void *thread_routine(void *ptr)
+{
+    int i;
+    for (i = 0; i < iterations; i++)
+    {
+        add((long long *)ptr, 1);
+    }
+    for (i = 0; i < iterations; i++)
+    {
+        add((long long *)ptr, -1);
+    }
+    return NULL;
 }
 
 void parse_options(int argc, char **argv)
