@@ -1,0 +1,6 @@
+*test*
+.vscode
+*.out
+functions.sh
+*.tar.gz
+lab2_add
