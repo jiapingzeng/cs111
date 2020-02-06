@@ -1,0 +1,18 @@
+NAME: Jiaping Zeng
+EMAIL: jiapingzeng@ucla.edu
+ID: 905363270
+
+S/N: BBGW19010158
+MAC: 2CF7F106A09D
+
+Included files:
+- my_beaglebone.jpg: selfie of me holding my Beaglebone
+- connected.png: a screen shot from a USB terminal command session connected to the system
+- copy.png: a screen shot from a local session in which I copied a hello world program from laptop/desktop to Beaglebone
+- build_run.png: a screen shot from a WIFI SSH session in which I built and ran a trivial (hello world) program
+- git.png: a screen shot from a WIFI SSH session in which I installed git and cloned a repository
+- Makefile:
+  - default: runs dist
+  - dist: builds distribution tarball
+
+References:
