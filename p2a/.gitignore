@@ -1,7 +1,10 @@
-*test*
 .vscode
 *.out
-functions.sh
 *.tar.gz
-lab2_add
 *.png
+*.csv
+
+*test*
+lab2_add
+lab2_list
+functions.sh

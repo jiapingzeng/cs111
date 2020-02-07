@@ -26,7 +26,7 @@ int main(int argc, char **argv)
 
     int i;
     long operations;
-    long long counter = 0;
+    long long counter = 0, time;
     struct timespec start, finish;
     pthread_t tids[threads];
 
@@ -45,7 +45,7 @@ int main(int argc, char **argv)
     clock_gettime(CLOCK_REALTIME, &finish);
 
     operations = threads * iterations * 2;
-    long long time = (finish.tv_sec - start.tv_sec) * 1000000000 + (finish.tv_nsec - start.tv_nsec); // in nanoseconds
+    time = (finish.tv_sec - start.tv_sec) * 1000000000 + (finish.tv_nsec - start.tv_nsec); // in nanoseconds
 
     print_tag();
     printf(",%d,%d,%ld,%lld,%lld,%lld\n", threads, iterations, operations, time, time / operations, counter);
