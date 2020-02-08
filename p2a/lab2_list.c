@@ -6,12 +6,14 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <string.h>
+#include <signal.h>
 #include "SortedList.h"
 
 int threads = 1, iterations = 1, yield_opt = 0, sync_opt = 0;
 // yield_opt: i=4, d=2, l=1
 
 void print_tag();
+void handle_sigsegv();
 void *thread_routine(void *ptr);
 int is_valid_yield_opt(char *optarg);
 void parse_options(int argc, char **argv);
@@ -26,17 +28,15 @@ int main(int argc, char **argv)
     struct timespec start, finish;
     pthread_t tids[threads];
 
+    signal(SIGSEGV, handle_sigsegv);
+
     clock_gettime(CLOCK_REALTIME, &start);
 
     for (i = 0; i < threads; i++)
-    {
         pthread_create(&tids[i], NULL, thread_routine, &counter);
-    }
 
     for (i = 0; i < threads; i++)
-    {
         pthread_join(tids[i], NULL);
-    }
 
     clock_gettime(CLOCK_REALTIME, &finish);
 
@@ -152,4 +152,9 @@ void parse_options(int argc, char **argv)
             exit(1);
         }
     }
+}
+
+void handle_sigsegv() {
+    fprintf(stderr, "Caught segmentation fault\n");
+    exit(1);
 }

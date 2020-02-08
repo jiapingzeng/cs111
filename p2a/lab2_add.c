@@ -8,8 +8,10 @@
 #include <sys/resource.h>
 #include <string.h>
 
-int threads = 1, iterations = 1, sync_opt = 0;
+int threads = 1, iterations = 1, sync_opt = 0, exitcode;
 static int yield_flag;
+pthread_mutex_t m_lock;
+int s_lock = 0;
 
 void print_tag();
 void add(long long *pointer, long long value);
@@ -30,19 +32,27 @@ int main(int argc, char **argv)
     struct timespec start, finish;
     pthread_t tids[threads];
 
+    if (sync_opt == 'm')
+    {
+        exitcode = pthread_mutex_init(&m_lock, NULL);
+        if (exitcode != 0)
+            fprintf(stderr, "Failed to initialize mutex\n");
+    }
+
     clock_gettime(CLOCK_REALTIME, &start);
 
     for (i = 0; i < threads; i++)
-    {
         pthread_create(&tids[i], NULL, thread_routine, &counter);
-    }
 
     for (i = 0; i < threads; i++)
-    {
         pthread_join(tids[i], NULL);
-    }
 
     clock_gettime(CLOCK_REALTIME, &finish);
+
+    if (sync_opt == 'm')
+    {
+        pthread_mutex_destroy(&m_lock);
+    }
 
     operations = threads * iterations * 2;
     time = (finish.tv_sec - start.tv_sec) * 1000000000 + (finish.tv_nsec - start.tv_nsec); // in nanoseconds
@@ -141,19 +151,24 @@ void add_none(long long *pointer, long long value)
 
 void add_m(long long *pointer, long long value)
 {
-    pthread_mutex_t lock;
-    pthread_mutex_init(&lock, NULL);
+    pthread_mutex_lock(&m_lock);
     add_none(pointer, value);
-    pthread_mutex_unlock(&lock);
+    pthread_mutex_unlock(&m_lock);
 }
 
 void add_s(long long *pointer, long long value)
 {
-    int lock = 0;
-    while (__sync_lock_test_and_set(&lock, 1))
+    long long sum = *pointer + value;
+    while (__sync_lock_test_and_set(pointer, sum))
         ;
+    if (yield_flag)
+        sched_yield();
+    __sync_lock_release(pointer);
+    /*
+    __sync_lock_test_and_set(&s_lock, 1);
     add_none(pointer, value);
-    __sync_lock_release(&lock);
+    __sync_lock_release(&s_lock);
+    */
 }
 
 void add_c(long long *pointer, long long value)
@@ -165,5 +180,5 @@ void add_c(long long *pointer, long long value)
         new = old + value;
         if (yield_flag)
             sched_yield();
-    } while (*__sync_val_compare_and_swap(&pointer, old, new) != old);
+    } while (__sync_val_compare_and_swap(pointer, old, new) != old);
 }
