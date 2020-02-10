@@ -10,7 +10,7 @@ dist_files = lab2_add.c lab2_list.c
 
 default: build
 
-build: lab2_add
+build: lab2_add SortedList.o lab2_list
 
 tests: lab2_add.csv
 
@@ -18,7 +18,10 @@ lab2_add:
 	$(CC) lab2_add.c -o $@ $(CFLAGS)
 
 lab2_list:
-	$(CC) lab2_list.c -o $@ $(CFLAGS)
+	$(CC) lab2_list.c SortedList.o -o $@ $(CFLAGS)
+
+SortedList.o:
+	$(CC) SortedList.c -c -o $@ $(CFLAGS)
 
 lab2_add.csv:
 	rm -f lab2_add.csv ; \

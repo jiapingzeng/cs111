@@ -11,40 +11,65 @@
 
 int threads = 1, iterations = 1, yield_opt = 0, sync_opt = 0;
 // yield_opt: i=4, d=2, l=1
+SortedList_t *list;
+SortedListElement_t *elements;
 
 void print_tag();
 void handle_sigsegv();
 void *thread_routine(void *ptr);
 int is_valid_yield_opt(char *optarg);
 void parse_options(int argc, char **argv);
+void print_list(SortedList_t *list);
 
 int main(int argc, char **argv)
 {
     parse_options(argc, argv);
 
-    int i, counter;
+    int i, r, size = threads * iterations;
     long operations;
     long long time;
     struct timespec start, finish;
     pthread_t tids[threads];
+    char *str;
 
     signal(SIGSEGV, handle_sigsegv);
 
+    // initialize empty list
+    list = (SortedList_t *)malloc(sizeof(SortedList_t));
+    list->next = list;
+    list->prev = list;
+
+    elements = (SortedListElement_t *)malloc(size * sizeof(SortedListElement_t));
+    for (i = 0; i < size; i++)
+    {
+        elements[i] = *(SortedListElement_t *)malloc(sizeof(SortedListElement_t));
+        r = rand() % __INT_MAX__;
+        str = (char *)malloc(16 * sizeof(char));
+        sprintf(str, "%d", r);
+        elements[i].key = str;
+    }
+
+    // for (i = 0; i < size; i++) SortedList_insert(list, &elements[i]);
+
+    // start timer
     clock_gettime(CLOCK_REALTIME, &start);
 
     for (i = 0; i < threads; i++)
-        pthread_create(&tids[i], NULL, thread_routine, &counter);
+        pthread_create(&tids[i], NULL, thread_routine, elements);
 
     for (i = 0; i < threads; i++)
         pthread_join(tids[i], NULL);
 
+    // finish timer
     clock_gettime(CLOCK_REALTIME, &finish);
+    
+    print_list(list);
 
     operations = threads * iterations * 3;
     time = (finish.tv_sec - start.tv_sec) * 1000000000 + (finish.tv_nsec - start.tv_nsec); // in nanoseconds
-    
+
     print_tag();
-    printf(",%d,%d,%d,%ld,%lld,%lld\n", threads, iterations, 1, operations, time, time/operations);
+    printf(",%d,%d,%d,%ld,%lld,%lld\n", threads, iterations, 1, operations, time, time / operations);
 
     exit(0);
 }
@@ -83,7 +108,13 @@ void print_tag()
 
 void *thread_routine(void *ptr)
 {
-    return ptr;
+    int i;
+    for (i = 0; i < iterations; i++)
+    {
+        SortedList_insert(list, &((SortedListElement_t *)ptr)[i]);
+        // printf("thread: %s\n", ((SortedListElement_t *)ptr)[i].key);
+    }
+    return NULL;
 }
 
 int is_valid_yield_opt(char *optarg)
@@ -97,6 +128,20 @@ int is_valid_yield_opt(char *optarg)
             return 0;
     }
     return 1;
+}
+
+void print_list(SortedList_t *list)
+{
+    if (!list)
+        return;
+    printf("{ ");
+    SortedListElement_t *ptr = list->next;
+    while (ptr->key != NULL)
+    {
+        printf("%s ", ptr->key);
+        ptr = ptr->next;
+    }
+    printf("}, length: %d\n", SortedList_length(list));
 }
 
 void parse_options(int argc, char **argv)
@@ -154,7 +199,8 @@ void parse_options(int argc, char **argv)
     }
 }
 
-void handle_sigsegv() {
+void handle_sigsegv()
+{
     fprintf(stderr, "Caught segmentation fault\n");
     exit(1);
 }

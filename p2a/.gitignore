@@ -3,6 +3,7 @@
 *.tar.gz
 *.png
 *.csv
+*.o
 
 *test*
 lab2_add
