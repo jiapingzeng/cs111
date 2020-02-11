@@ -28,3 +28,4 @@ QUESTION 2.2.2 - scalability of spin locks
 
 References:
 http://www.cs.tufts.edu/comp/111/examples/Time/clock_gettime.c
+https://www.geeksforgeeks.org/rand-and-srand-in-ccpp/

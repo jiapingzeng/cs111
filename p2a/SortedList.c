@@ -1,5 +1,6 @@
 #include <string.h>
 #include <stdio.h>
+#include <sched.h>
 #include "SortedList.h"
 
 int debug = 0;
@@ -9,6 +10,8 @@ void SortedList_insert(SortedList_t *list, SortedListElement_t *element)
     if (!list || !element)
         return;
     SortedListElement_t *ptr = list->next;
+    if (opt_yield & INSERT_YIELD)
+        sched_yield();
     while (ptr->key && strcmp(element->key, ptr->key) > 0)
         ptr = ptr->next;
     element->next = ptr;
@@ -21,10 +24,10 @@ void SortedList_insert(SortedList_t *list, SortedListElement_t *element)
 
 int SortedList_delete(SortedListElement_t *element)
 {
-    if (!element || !element->prev || !element->next)
+    if (!element || !element->prev || !element->next || element->next->prev != element || element->prev->next != element)
         return 1;
-    if (element->next->prev != element || element->prev->next != element)
-        return 1;
+    if (opt_yield & DELETE_YIELD)
+        sched_yield();
     element->next->prev = element->prev;
     element->prev->next = element->next;
     if (debug)
@@ -37,6 +40,8 @@ SortedListElement_t *SortedList_lookup(SortedList_t *list, const char *key)
     if (!list)
         return NULL;
     SortedListElement_t *ptr = list->next;
+    if (opt_yield & LOOKUP_YIELD)
+        sched_yield();
     while (ptr->key)
     {
         if (strcmp(ptr->key, key) == 0)
@@ -52,6 +57,8 @@ int SortedList_length(SortedList_t *list)
         return -1;
     int count = 0;
     SortedListElement_t *ptr = list->next;
+    if (opt_yield & LOOKUP_YIELD)
+        sched_yield();
     while (ptr->key)
     {
         count++;

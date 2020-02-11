@@ -9,14 +9,16 @@
 #include <signal.h>
 #include "SortedList.h"
 
-int threads = 1, iterations = 1, yield_opt = 0, sync_opt = 0;
-// yield_opt: i=4, d=2, l=1
+int threads = 1, iterations = 1, opt_yield = 0, opt_sync = 0, exitcode, s_lock = 0;
+// opt_yield: i=4, d=2, l=1
 SortedList_t *list;
 SortedListElement_t *elements;
+pthread_mutex_t m_lock;
 
+void insert(SortedList_t *list, SortedListElement_t *element);
+void *thread_routine(void *ptr);
 void print_tag();
 void handle_sigsegv();
-void *thread_routine(void *ptr);
 int is_valid_yield_opt(char *optarg);
 void parse_options(int argc, char **argv);
 void print_list(SortedList_t *list);
@@ -27,12 +29,13 @@ int main(int argc, char **argv)
 
     int i, r, size = threads * iterations;
     long operations;
-    long long time;
+    long long completion_time;
     struct timespec start, finish;
     pthread_t tids[threads];
     char *str;
 
     signal(SIGSEGV, handle_sigsegv);
+    srand(time(0));
 
     // initialize empty list
     list = (SortedList_t *)malloc(sizeof(SortedList_t));
@@ -51,39 +54,83 @@ int main(int argc, char **argv)
 
     // for (i = 0; i < size; i++) SortedList_insert(list, &elements[i]);
 
+    if (opt_sync == 'm')
+    {
+        exitcode = pthread_mutex_init(&m_lock, NULL);
+        if (exitcode != 0)
+            fprintf(stderr, "Failed to initialize mutex\n");
+    }
+
     // start timer
     clock_gettime(CLOCK_REALTIME, &start);
 
     for (i = 0; i < threads; i++)
-        pthread_create(&tids[i], NULL, thread_routine, elements);
+        pthread_create(&tids[i], NULL, thread_routine, &i);
 
     for (i = 0; i < threads; i++)
         pthread_join(tids[i], NULL);
 
     // finish timer
     clock_gettime(CLOCK_REALTIME, &finish);
-    
-    print_list(list);
+
+    //print_list(list);
+
+    if (opt_sync == 'm')
+        pthread_mutex_destroy(&m_lock);
+
+    for (i = 0; i < size; i++)
+        free((void *)elements[i].key);
+    free(elements);
+    free(list);
 
     operations = threads * iterations * 3;
-    time = (finish.tv_sec - start.tv_sec) * 1000000000 + (finish.tv_nsec - start.tv_nsec); // in nanoseconds
+    completion_time = (finish.tv_sec - start.tv_sec) * 1000000000 + (finish.tv_nsec - start.tv_nsec); // in nanoseconds
 
     print_tag();
-    printf(",%d,%d,%d,%ld,%lld,%lld\n", threads, iterations, 1, operations, time, time / operations);
+    printf(",%d,%d,%d,%ld,%lld,%lld\n", threads, iterations, 1, operations, completion_time, completion_time / operations);
 
     exit(0);
+}
+
+void *thread_routine(void *ptr)
+{
+    int i, t = *(int *)ptr;
+    for (i = t * iterations; i < (t + 1) * iterations; i++)
+    {
+        insert(list, &elements[i]);
+    }
+    return NULL;
+}
+
+void insert(SortedList_t *list, SortedListElement_t *element)
+{
+    if (opt_sync == 'm')
+    {
+        pthread_mutex_lock(&m_lock);
+        SortedList_insert(list, element);
+        pthread_mutex_unlock(&m_lock);
+    }
+    else if (opt_sync == 's')
+    {
+        while (__sync_lock_test_and_set(&s_lock, 1))
+            ;
+        SortedList_insert(list, element);
+        __sync_lock_release(&s_lock);
+    }
+    else
+        SortedList_insert(list, element);
 }
 
 void print_tag()
 {
     int temp;
     printf("list");
-    if (yield_opt == 0)
+    if (opt_yield == 0)
         printf("-none");
     else
     {
         printf("-");
-        temp = yield_opt;
+        temp = opt_yield;
         if (temp >= 4)
         {
             printf("i");
@@ -100,21 +147,10 @@ void print_tag()
             temp -= 1;
         }
     }
-    if (sync_opt == 'm' || sync_opt == 's')
-        printf("-%c", sync_opt);
+    if (opt_sync == 'm' || opt_sync == 's')
+        printf("-%c", opt_sync);
     else
         printf("-none");
-}
-
-void *thread_routine(void *ptr)
-{
-    int i;
-    for (i = 0; i < iterations; i++)
-    {
-        SortedList_insert(list, &((SortedListElement_t *)ptr)[i]);
-        // printf("thread: %s\n", ((SortedListElement_t *)ptr)[i].key);
-    }
-    return NULL;
 }
 
 int is_valid_yield_opt(char *optarg)
@@ -168,11 +204,11 @@ void parse_options(int argc, char **argv)
             if (is_valid_yield_opt(optarg))
             {
                 if (strchr(optarg, 'i') != NULL)
-                    yield_opt += 4;
+                    opt_yield += 4;
                 if (strchr(optarg, 'd') != NULL)
-                    yield_opt += 2;
+                    opt_yield += 2;
                 if (strchr(optarg, 'l') != NULL)
-                    yield_opt += 1;
+                    opt_yield += 1;
             }
             else
             {
@@ -182,7 +218,7 @@ void parse_options(int argc, char **argv)
             break;
         case 's':
             if (strcmp(optarg, "s") == 0 || strcmp(optarg, "m") == 0)
-                sync_opt = optarg[0];
+                opt_sync = optarg[0];
             else
             {
                 fprintf(stderr, "Invalid sync option: %s\n", optarg);
