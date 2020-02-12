@@ -96,9 +96,7 @@ void *thread_routine(void *ptr)
 {
     int i, t = *(int *)ptr;
     for (i = t * iterations; i < (t + 1) * iterations; i++)
-    {
         insert(list, &elements[i]);
-    }
     return NULL;
 }
 

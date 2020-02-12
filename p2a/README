@@ -1,30 +1,83 @@
 QUESTION 2.1.1 - causing conflicts:
+
     Why does it take many iterations before errors are seen?
+        Increasing the number of iterations increases the amount of time each thread spends in the critical section. By incrasing the number of iterations, each thread spends more time in the critical section and is then more likely to overlap with each other.
+
     Why does a significantly smaller number of iterations so seldom fail?
+        With smaller number of iterations, each thread is expected to finish their job relatively quickly, therefore the probability of them interfering with each other in the critical section is lower.
 
 QUESTION 2.1.2 - cost of yielding:
+
     Why are the --yield runs so much slower?
+        As noted in the man page of sched_yield(2), calling sched_yield() unnecessarily/inappropriately will result in unnecessary context switches, degrading system performance. In our case, since there is no heavily contended resources being released, yielding does not help at all.
+
     Where is the additional time going?
-    Is it possible to get valid per-operation timings if we are using the --yield option?
-    If so, explain how. If not, explain why not.
+        The additional time is going into context switching.
+
+    Is it possible to get valid per-operation timings if we are using the --yield option? If so, explain how. If not, explain why not.
+        It is not because in the basic case without locks, there is no benefit of yielding and the cost of context switches is wasted.
+
+
 
 QUESTION 2.1.3 - measurement errors:
+
     Why does the average cost per operation drop with increasing iterations?
+        Because for lower number of iterations, the ratio of cost to actual time used to compute is relatively high. As the number of iterations increase, the overhead cost does not take up as a big of a portion of the total time.
+
     If the cost per iteration is a function of the number of iterations, how do we know how many iterations to run (or what the "correct" cost is)?
+        The larger the better because then we would be able to reduce the ratio of overhead cost to total time, and therefore get a correlation between just cost (non-overhead) and number of iterations.
 
 QUESTION 2.1.4 - costs of serialization:
+
     Why do all of the options perform similarly for low numbers of threads?
+        Because for low number of thread the probability of them attempting to access the shared resource at the same time is relatively low. As a result, there is generally no waiting time due to waiting for lock to be released.
+
     Why do the three protected operations slow down as the number of threads rises?
+        As the number of threads increase, the threads begin to "fight" each other for access to the shared variable and has to wait while another thread is accessing the resource.
 
 QUESTION 2.2.1 - scalability of Mutex
+
     Compare the variation in time per mutex-protected operation vs the number of threads in Part-1 (adds) and Part-2 (sorted lists).
+
+
     Comment on the general shapes of the curves, and explain why they have this shape.
+
+
     Comment on the relative rates of increase and differences in the shapes of the curves, and offer an explanation for these differences.
+
 
 QUESTION 2.2.2 - scalability of spin locks
-    Compare the variation in time per protected operation vs the number of threads for list operations protected by Mutex vs Spin locks. Comment on the general shapes of the curves, and explain why they have this shape.
-    Comment on the relative rates of increase and differences in the shapes of the curves, and offer an explanation for these differences.
 
+    Compare the variation in time per protected operation vs the number of threads for list operations protected by Mutex vs Spin locks. Comment on the general shapes of the curves, and explain why they have this shape.
+
+
+    Comment on the relative rates of increase and differences in the shapes of the curves, and offer an explanation for these differences.
+        
+
+Included files:
+  - lab2_add.c: a C program that implements and tests a shared variable add function
+  - lab2_list.c: a C program that implements and tests SortedList operations
+  - SortedList.h: a header file describing the interfaces for linked list operations
+  - SortedList.c: a C module that implements insert, delete, lookup, and length methods for a sorted doubly linked list
+  - Makefile:
+    - build: compile lab2_add.c, lab2_list.c and SortedList.c
+    - tests: run test cases to generate results in CSV files
+    - graphs: generate required graphs using the generated CSV files
+    - dist: build the distribution tarball
+    - clean: delete programs and output created
+  - lab2_add.csv: results from lab2_add tests
+  - lab2_list.csv: results from lab2_list tests
+  - driver.sh: generates .csv files
+  - graphs
+    - lab2_add-1.png: threads and iterations required to generate a failure (with and without yields)
+    - lab2_add-2.png: average time per operation with and without yields
+    - lab2_add-3.png: average time per (single threaded) operation vs. the number of iterations
+    - lab2_add-4.png: threads and iterations that can run successfully with yields under each of the synchronization options
+    - lab2_add-5.png: average time per (protected) operation vs. the number of threads
+    - lab2_list-1.png: average time per (single threaded) unprotected operation vs. number of iterations
+    - lab2_list-2.png: threads and iterations required to generate a failure
+    - lab2_list-3.png: iterations that can run (protected) without failure
+    - lab2_list-4.png: cost per operation vs. the number of threads for the various synchronization options
 
 References:
 http://www.cs.tufts.edu/comp/111/examples/Time/clock_gettime.c
