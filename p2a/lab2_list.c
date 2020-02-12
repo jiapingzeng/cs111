@@ -15,7 +15,6 @@ SortedList_t *list;
 SortedListElement_t *elements;
 pthread_mutex_t m_lock;
 
-void insert(SortedList_t *list, SortedListElement_t *element);
 void *thread_routine(void *ptr);
 void print_tag();
 void handle_sigsegv();
@@ -95,28 +94,42 @@ int main(int argc, char **argv)
 void *thread_routine(void *ptr)
 {
     int i, t = *(int *)ptr;
+    // insert
     for (i = t * iterations; i < (t + 1) * iterations; i++)
-        insert(list, &elements[i]);
-    return NULL;
-}
-
-void insert(SortedList_t *list, SortedListElement_t *element)
-{
+        if (opt_sync == 'm')
+        {
+            pthread_mutex_lock(&m_lock);
+            SortedList_insert(list, &elements[i]);
+            pthread_mutex_unlock(&m_lock);
+        }
+        else if (opt_sync == 's')
+        {
+            while (__sync_lock_test_and_set(&s_lock, 1))
+                ;
+            SortedList_insert(list, &element[i]);
+            __sync_lock_release(&s_lock);
+        }
+        else
+            SortedList_insert(list, &element[i]);
+    // get length
     if (opt_sync == 'm')
     {
         pthread_mutex_lock(&m_lock);
-        SortedList_insert(list, element);
+        SortedList_length(list);
         pthread_mutex_unlock(&m_lock);
     }
     else if (opt_sync == 's')
     {
         while (__sync_lock_test_and_set(&s_lock, 1))
             ;
-        SortedList_insert(list, element);
+        SortedList_length(list);
         __sync_lock_release(&s_lock);
     }
     else
-        SortedList_insert(list, element);
+    {
+        SortedList_length(list);
+    }
+    return NULL;
 }
 
 void print_tag()
