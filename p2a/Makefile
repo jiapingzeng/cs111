@@ -5,7 +5,7 @@
 CC = gcc
 CFLAGS = -g -Wall -Wextra -lpthread
 
-dist_files = SortedList.h SortedList.c lab2_add.c lab2_list.c lab2_add.csv lab2_list.csv Makefile README *.png
+dist_files = SortedList.h SortedList.c lab2_add.c lab2_list.c lab2_add.csv lab2_list.csv Makefile README driver.sh *.png
 
 default: build
 
