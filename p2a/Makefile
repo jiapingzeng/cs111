@@ -9,23 +9,23 @@ sources = lab2_add.c lab2_list.c SortedList.c SortedList.h
 data = lab2_add.csv lab2_list.csv
 graphs = lab2_add-1.png lab2_add-2.png lab2_add-3.png lab2_add-4.png lab2_add-5.png lab2_list-1.png lab2_list-2.png lab2_list-3.png lab2_list-4.png
 
-dist_files = Makefile README driver.sh ${sources} ${data} ${graphs}
+dist_files = Makefile README driver.sh lab2_add.gp lab2_list.gp ${sources} ${data} ${graphs}
 
 default: build
 
 build: SortedList.o lab2_add lab2_list
 
 tests: build
-	- bash driver.sh
+	./driver.sh
 
 graphs: tests
-	gnuplot lab2_add.gp
-	gnuplot lab2_list.gp
+	./lab2_add.gp
+	./lab2_list.gp
 
 dist: graphs lab2a-905363270.tar.gz
 
 clean:
-	rm -rf *test* *.o *.out *.tar.gz lab2_add lab2_list *.png *.csv
+	rm -rf *test* *.out *.o *.tar.gz lab2_add lab2_list *.csv *.png
 
 lab2_add:
 	$(CC) lab2_add.c -o $@ $(CFLAGS)

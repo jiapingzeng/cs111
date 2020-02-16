@@ -96,7 +96,7 @@ test_list()
     done
 }
 
-rm -f lab2_add.csv
+# rm -f lab2_add.csv
 test_add
-rm -f lab2_list.csv
+# rm -f lab2_list.csv
 test_list
