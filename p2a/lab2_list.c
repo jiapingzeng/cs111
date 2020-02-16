@@ -26,7 +26,7 @@ int main(int argc, char **argv)
 {
     parse_options(argc, argv);
 
-    int i, r, size = threads * iterations;
+    int i, r, size = threads * iterations, nums[threads];
     long operations;
     long long completion_time;
     struct timespec start, finish;
@@ -51,8 +51,6 @@ int main(int argc, char **argv)
         elements[i].key = str;
     }
 
-    // for (i = 0; i < size; i++) SortedList_insert(list, &elements[i]);
-
     if (opt_sync == 'm')
     {
         exitcode = pthread_mutex_init(&m_lock, NULL);
@@ -64,7 +62,10 @@ int main(int argc, char **argv)
     clock_gettime(CLOCK_REALTIME, &start);
 
     for (i = 0; i < threads; i++)
-        pthread_create(&tids[i], NULL, thread_routine, &i);
+    {
+        nums[i] = i;
+        pthread_create(&tids[i], NULL, thread_routine, &nums[i]);
+    }
 
     for (i = 0; i < threads; i++)
         pthread_join(tids[i], NULL);
@@ -85,7 +86,7 @@ int main(int argc, char **argv)
     operations = threads * iterations * 3;
     completion_time = (finish.tv_sec - start.tv_sec) * 1000000000 + (finish.tv_nsec - start.tv_nsec); // in nanoseconds
 
-    print_tag();
+    print_tag(stdout);
     printf(",%d,%d,%d,%ld,%lld,%lld\n", threads, iterations, 1, operations, completion_time, completion_time / operations);
 
     exit(0);
@@ -132,10 +133,11 @@ void *thread_routine(void *ptr)
     }
     else
         length = SortedList_length(list);
-    
+
     if (length < 0)
     {
-        fprintf(stderr, "Invalid length\n");
+        print_tag(stderr);
+        fprintf(stderr, ": Invalid length\n");
         exit(1);
     }
 
@@ -163,7 +165,8 @@ void *thread_routine(void *ptr)
 
         if (!elements)
         {
-            fprintf(stderr, "Element not found\n");
+            print_tag(stderr);
+            fprintf(stderr, ": Element not found\n");
             exit(1);
         }
 
@@ -186,43 +189,44 @@ void *thread_routine(void *ptr)
 
         if (exitcode)
         {
-            fprintf(stderr, "Unable to delete element\n");
+            print_tag(stderr);
+            fprintf(stderr, ": Unable to delete element\n");
             exit(1);
         }
     }
     return NULL;
 }
 
-void print_tag()
+void print_tag(FILE *stream)
 {
     int temp;
-    printf("list");
+    fprintf(stream, "list");
     if (opt_yield == 0)
-        printf("-none");
+        fprintf(stream, "-none");
     else
     {
-        printf("-");
+        fprintf(stream, "-");
         temp = opt_yield;
         if (temp >= 4)
         {
-            printf("i");
+            fprintf(stream, "i");
             temp -= 4;
         }
         if (temp >= 2)
         {
-            printf("d");
+            fprintf(stream, "d");
             temp -= 2;
         }
         if (temp >= 1)
         {
-            printf("l");
+            fprintf(stream, "l");
             temp -= 1;
         }
     }
     if (opt_sync == 'm' || opt_sync == 's')
-        printf("-%c", opt_sync);
+        fprintf(stream, "-%c", opt_sync);
     else
-        printf("-none");
+        fprintf(stream, "-none");
 }
 
 int is_valid_yield_opt(char *optarg)
@@ -309,6 +313,7 @@ void parse_options(int argc, char **argv)
 
 void handle_sigsegv()
 {
-    fprintf(stderr, "Caught segmentation fault\n");
+    print_tag(stderr);
+    fprintf(stderr, ": Caught segmentation fault\n");
     exit(1);
 }

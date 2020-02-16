@@ -2,9 +2,9 @@
 
 test_add()
 {
-    for i in 10 20 40 80 100 1000 10000 100000; do
+    for i in 10 20 40 80 100 1000 10000; do
         for j in 1 2 4 8 12; do
-            for k in {1..2}; do
+            for k in {1..5}; do
                 # add-none
                 ./lab2_add --iterations=$i --threads=$j >> lab2_add.csv
                 # add-m
@@ -28,9 +28,9 @@ test_add()
 
 test_list()
 {
-    for i in 10 100; do
-        for j in 1 2 4 8 12; do
-            for k in {1..2}; do
+    for i in 1 2 4 8 16 32; do
+        for j in 2 4 8 12; do
+            for k in {1..5}; do
                 # list-none-m
                 ./lab2_list --iterations=$i --threads=$j --sync=m >> lab2_list.csv
                 # list-i-m
@@ -49,13 +49,13 @@ test_list()
         done
     done
     
-#    for i in 1 10 100 1000; do
-#        for j in 2 4 8 12; do
-#            ./lab2_list --iterations=$i --threads=$j >> lab2_list.csv
-#        done
-#    done
+    for i in 1 2 4 8 12 16 24; do
+        ./lab2_list --iterations=1000 --threads=$j >> lab2_list.csv
+        ./lab2_list --iterations=1000 --threads=$j --sync=m >> lab2_list.csv
+        ./lab2_list --iterations=1000 --threads=$j --sync=s >> lab2_list.csv
+    done
 }
 
 rm -f lab2_add.csv lab2_list.csv
-# test_add
+test_add
 test_list

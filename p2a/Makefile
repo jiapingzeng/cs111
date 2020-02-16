@@ -22,7 +22,6 @@ dist: lab2a-905363270.tar.gz
 clean:
 	rm -rf *test* *.o *.out *.tar.gz lab2_add lab2_list *.png *.csv
 
-
 lab2_add:
 	$(CC) lab2_add.c -o $@ $(CFLAGS)
 

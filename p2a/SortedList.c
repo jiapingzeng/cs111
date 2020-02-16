@@ -7,8 +7,11 @@ int debug = 0;
 
 void SortedList_insert(SortedList_t *list, SortedListElement_t *element)
 {
-    if (!list || !element)
+    if (!list || !element) {
+        if (debug)
+            printf("unable to insert: %p (prev: %p, next: %p, key: %s)\n", element, element->prev, element->next, element->key);
         return;
+    }
     SortedListElement_t *ptr = list->next;
     while (ptr->key && strcmp(element->key, ptr->key) > 0)
         ptr = ptr->next;
@@ -24,8 +27,12 @@ void SortedList_insert(SortedList_t *list, SortedListElement_t *element)
 
 int SortedList_delete(SortedListElement_t *element)
 {
-    if (!element || !element->prev || !element->next || element->next->prev != element || element->prev->next != element)
+    if (!element || !element->next || !element->prev || element->next->prev != element || element->prev->next != element)
+    {
+        if (debug)
+            printf("unable to delete: %p (prev: %p, next: %p, key: %s)\n", element, element->prev, element->next, element->key);
         return 1;
+    }
     if (opt_yield & DELETE_YIELD)
         sched_yield();
     element->next->prev = element->prev;
