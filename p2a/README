@@ -1,3 +1,32 @@
+NAME: Jiaping Zeng
+EMAIL: jiapingzeng@ucla.edu
+ID: 905363270
+
+Included files:
+  - lab2_add.c: a C program that implements and tests a shared variable add function
+  - lab2_list.c: a C program that implements and tests SortedList operations
+  - SortedList.h: a header file describing the interfaces for linked list operations
+  - SortedList.c: a C module that implements insert, delete, lookup, and length methods for a sorted doubly linked list
+  - Makefile:
+    - build: compile lab2_add.c, lab2_list.c and SortedList.c
+    - tests: run test cases to generate results in CSV files
+    - graphs: generate required graphs using the generated CSV files
+    - dist: build the distribution tarball
+    - clean: delete programs and output created
+  - lab2_add.csv: results from lab2_add tests
+  - lab2_list.csv: results from lab2_list tests
+  - driver.sh: generates .csv files
+  - graphs
+    - lab2_add-1.png: threads and iterations required to generate a failure (with and without yields)
+    - lab2_add-2.png: average time per operation with and without yields
+    - lab2_add-3.png: average time per (single threaded) operation vs. the number of iterations
+    - lab2_add-4.png: threads and iterations that can run successfully with yields under each of the synchronization options
+    - lab2_add-5.png: average time per (protected) operation vs. the number of threads
+    - lab2_list-1.png: average time per (single threaded) unprotected operation vs. number of iterations
+    - lab2_list-2.png: threads and iterations required to generate a failure
+    - lab2_list-3.png: iterations that can run (protected) without failure
+    - lab2_list-4.png: cost per operation vs. the number of threads for the various synchronization options
+
 QUESTION 2.1.1 - causing conflicts:
 
     Why does it take many iterations before errors are seen?
@@ -52,32 +81,6 @@ QUESTION 2.2.2 - scalability of spin locks
 
 
     Comment on the relative rates of increase and differences in the shapes of the curves, and offer an explanation for these differences.
-        
-
-Included files:
-  - lab2_add.c: a C program that implements and tests a shared variable add function
-  - lab2_list.c: a C program that implements and tests SortedList operations
-  - SortedList.h: a header file describing the interfaces for linked list operations
-  - SortedList.c: a C module that implements insert, delete, lookup, and length methods for a sorted doubly linked list
-  - Makefile:
-    - build: compile lab2_add.c, lab2_list.c and SortedList.c
-    - tests: run test cases to generate results in CSV files
-    - graphs: generate required graphs using the generated CSV files
-    - dist: build the distribution tarball
-    - clean: delete programs and output created
-  - lab2_add.csv: results from lab2_add tests
-  - lab2_list.csv: results from lab2_list tests
-  - driver.sh: generates .csv files
-  - graphs
-    - lab2_add-1.png: threads and iterations required to generate a failure (with and without yields)
-    - lab2_add-2.png: average time per operation with and without yields
-    - lab2_add-3.png: average time per (single threaded) operation vs. the number of iterations
-    - lab2_add-4.png: threads and iterations that can run successfully with yields under each of the synchronization options
-    - lab2_add-5.png: average time per (protected) operation vs. the number of threads
-    - lab2_list-1.png: average time per (single threaded) unprotected operation vs. number of iterations
-    - lab2_list-2.png: threads and iterations required to generate a failure
-    - lab2_list-3.png: iterations that can run (protected) without failure
-    - lab2_list-4.png: cost per operation vs. the number of threads for the various synchronization options
 
 References:
 http://www.cs.tufts.edu/comp/111/examples/Time/clock_gettime.c
