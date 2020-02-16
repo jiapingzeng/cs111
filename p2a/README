@@ -67,21 +67,24 @@ QUESTION 2.1.4 - costs of serialization:
 QUESTION 2.2.1 - scalability of Mutex
 
     Compare the variation in time per mutex-protected operation vs the number of threads in Part-1 (adds) and Part-2 (sorted lists).
-
+        In both part 1 and part 2 the time per operation for mutex increased. See lab2_add-5.png and lab2_list-4.png.
 
     Comment on the general shapes of the curves, and explain why they have this shape.
-
+        They are both increasing. When one thread locks the shared resource, the others have to wait for it to unlock. As a result, when there are a lot of threads, the total waiting time increases. 
 
     Comment on the relative rates of increase and differences in the shapes of the curves, and offer an explanation for these differences.
+        The rate of increase is faster for part 2 because each operation is more time consuming since it involves list traversal rather than simple addition. Therefore, the lock lasts longer resulting in more wait time.
 
 
 QUESTION 2.2.2 - scalability of spin locks
 
     Compare the variation in time per protected operation vs the number of threads for list operations protected by Mutex vs Spin locks. Comment on the general shapes of the curves, and explain why they have this shape.
-
+        Both mutex and spin lock increase in time as number of threads increase. As the number of threads increases, the threads compete more with each other resulting in more time per operation.
 
     Comment on the relative rates of increase and differences in the shapes of the curves, and offer an explanation for these differences.
+        Mutex seems to increase at a constant rate where spin lock is generally less consistent and increasing at an increasing speed. This could be due to that spin lock occupies the CPU while the lock is active (by constantly checking) resulting in more time overall.
 
 References:
 http://www.cs.tufts.edu/comp/111/examples/Time/clock_gettime.c
 https://www.geeksforgeeks.org/rand-and-srand-in-ccpp/
+https://www.geeksforgeeks.org/mutex-lock-for-linux-thread-synchronization/

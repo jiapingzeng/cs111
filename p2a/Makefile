@@ -25,7 +25,7 @@ graphs: tests
 dist: graphs lab2a-905363270.tar.gz
 
 clean:
-	rm -rf *test* *.out *.o *.tar.gz lab2_add lab2_list *.csv *.png
+	rm -rf *test* *.out *.o *.tar.gz lab2_add lab2_list
 
 lab2_add:
 	$(CC) lab2_add.c -o $@ $(CFLAGS)

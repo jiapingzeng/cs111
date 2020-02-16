@@ -33,8 +33,19 @@ test_list()
         done
     done
 
+    for i in 1 10 100 1000; do
+        for j in 1 2 4 8; do
+            for k in {1..5}; do
+                # list-none-m
+                ./lab2_list --iterations=$i --threads=$j --sync=m >> lab2_list.csv
+                # list-none-s
+                ./lab2_list --iterations=$i --threads=$j --sync=s >> lab2_list.csv
+            done
+        done
+    done
+
     for i in 1 2 4 8 16 32; do
-        for j in 2 4 8 12; do
+        for j in 1 2 4 8 12; do
             # list-none-none
             ./lab2_list --iterations=$i --threads=$j >> lab2_list.csv
             # list-i-none
@@ -96,7 +107,7 @@ test_list()
     done
 }
 
-# rm -f lab2_add.csv
+rm -f lab2_add.csv
 test_add
-# rm -f lab2_list.csv
+rm -f lab2_list.csv
 test_list
