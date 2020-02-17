@@ -1,0 +1,10 @@
+.vscode
+*.out
+*.tar.gz
+*.png
+*.csv
+*.o
+
+*test*
+lab2_list
+functions.sh
