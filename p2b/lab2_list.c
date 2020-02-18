@@ -96,15 +96,24 @@ int main(int argc, char **argv)
 void *thread_routine(void *ptr)
 {
     int i, t = *(int *)ptr, length;
+    long long thread_time;
+    struct timespec thread_start, thread_finish;
 
     for (i = t * iterations; i < (t + 1) * iterations; i++)
     {
+        clock_gettime(CLOCK_REALTIME, &thread_start);
         lock();
+        clock_gettime(CLOCK_REALTIME, &thread_finish);
+        thread_time += (thread_finish.tv_sec - thread_start.tv_sec) * 1000000000 + (thread_finish.tv_nsec - thread_start.tv_nsec);
+
         SortedList_insert(list, &elements[i]);
         unlock();
     }
 
+    clock_gettime(CLOCK_REALTIME, &thread_start);
     lock();
+    clock_gettime(CLOCK_REALTIME, &thread_finish);
+    thread_time += (thread_finish.tv_sec - thread_start.tv_sec) * 1000000000 + (thread_finish.tv_nsec - thread_start.tv_nsec);
     length = SortedList_length(list);
     unlock();
 
@@ -117,7 +126,10 @@ void *thread_routine(void *ptr)
 
     for (i = t * iterations; i < (t + 1) * iterations; i++)
     {
+        clock_gettime(CLOCK_REALTIME, &thread_start);
         lock();
+        clock_gettime(CLOCK_REALTIME, &thread_finish);
+        thread_time += (thread_finish.tv_sec - thread_start.tv_sec) * 1000000000 + (thread_finish.tv_nsec - thread_start.tv_nsec);
 
         SortedListElement_t *element;
         element = SortedList_lookup(list, elements[i].key);
@@ -141,7 +153,7 @@ void *thread_routine(void *ptr)
         unlock();
     }
 
-    return NULL;
+    return (void *) thread_time;
 }
 
 void lock()
