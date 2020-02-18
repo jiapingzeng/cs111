@@ -16,6 +16,8 @@ SortedList_t *list;
 SortedListElement_t *elements;
 pthread_mutex_t m_lock;
 
+void lock();
+void unlock();
 void *thread_routine(void *ptr);
 void print_tag();
 void handle_sigsegv();
@@ -93,45 +95,18 @@ int main(int argc, char **argv)
 
 void *thread_routine(void *ptr)
 {
-    int i, t = *(int *)ptr;
+    int i, t = *(int *)ptr, length;
 
-    // insert
     for (i = t * iterations; i < (t + 1) * iterations; i++)
     {
-        if (opt_sync == 'm')
-        {
-            pthread_mutex_lock(&m_lock);
-            SortedList_insert(list, &elements[i]);
-            pthread_mutex_unlock(&m_lock);
-        }
-        else if (opt_sync == 's')
-        {
-            while (__sync_lock_test_and_set(&s_lock, 1))
-                ;
-            SortedList_insert(list, &elements[i]);
-            __sync_lock_release(&s_lock);
-        }
-        else
-            SortedList_insert(list, &elements[i]);
+        lock();
+        SortedList_insert(list, &elements[i]);
+        unlock();
     }
 
-    // get length
-    int length;
-    if (opt_sync == 'm')
-    {
-        pthread_mutex_lock(&m_lock);
-        length = SortedList_length(list);
-        pthread_mutex_unlock(&m_lock);
-    }
-    else if (opt_sync == 's')
-    {
-        while (__sync_lock_test_and_set(&s_lock, 1))
-            ;
-        length = SortedList_length(list);
-        __sync_lock_release(&s_lock);
-    }
-    else
-        length = SortedList_length(list);
+    lock();
+    length = SortedList_length(list);
+    unlock();
 
     if (length < 0)
     {
@@ -140,51 +115,21 @@ void *thread_routine(void *ptr)
         exit(1);
     }
 
-    // look up and delete
     for (i = t * iterations; i < (t + 1) * iterations; i++)
     {
+        lock();
+
         SortedListElement_t *element;
+        element = SortedList_lookup(list, elements[i].key);
 
-        // look up
-        if (opt_sync == 'm')
-        {
-            pthread_mutex_lock(&m_lock);
-            element = SortedList_lookup(list, elements[i].key);
-            pthread_mutex_unlock(&m_lock);
-        }
-        else if (opt_sync == 's')
-        {
-            while (__sync_lock_test_and_set(&s_lock, 1))
-                ;
-            element = SortedList_lookup(list, elements[i].key);
-            __sync_lock_release(&s_lock);
-        }
-        else
-            element = SortedList_lookup(list, elements[i].key);
-
-        if (!elements)
+        if (!element)
         {
             print_tag(stderr);
             fprintf(stderr, ": Element not found\n");
             exit(1);
         }
 
-        // delete
-        if (opt_sync == 'm')
-        {
-            pthread_mutex_lock(&m_lock);
-            exitcode = SortedList_delete(element);
-            pthread_mutex_unlock(&m_lock);
-        }
-        else if (opt_sync == 's')
-        {
-            while (__sync_lock_test_and_set(&s_lock, 1))
-                ;
-            exitcode = SortedList_delete(element);
-            __sync_lock_release(&s_lock);
-        }
-        else
-            exitcode = SortedList_delete(element);
+        exitcode = SortedList_delete(element);
 
         if (exitcode)
         {
@@ -192,8 +137,28 @@ void *thread_routine(void *ptr)
             fprintf(stderr, ": Unable to delete element\n");
             exit(1);
         }
+
+        unlock();
     }
+
     return NULL;
+}
+
+void lock()
+{
+    if (opt_sync == 'm')
+        pthread_mutex_lock(&m_lock);
+    else if (opt_sync == 's')
+        while (__sync_lock_test_and_set(&s_lock, 1))
+            ;
+}
+
+void unlock()
+{
+    if (opt_sync == 'm')
+        pthread_mutex_unlock(&m_lock);
+    else if (opt_sync == 's')
+        __sync_lock_release(&s_lock);
 }
 
 void print_tag(FILE *stream)
