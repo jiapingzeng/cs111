@@ -9,7 +9,8 @@
 #include <signal.h>
 #include "SortedList.h"
 
-int threads = 1, iterations = 1, opt_yield = 0, opt_sync = 0, exitcode, s_lock = 0;
+int threads = 1, iterations = 1, opt_yield = 0, opt_sync = 0, exitcode;
+volatile int s_lock = 0;
 // opt_yield: i=4, d=2, l=1
 SortedList_t *list;
 SortedListElement_t *elements;
