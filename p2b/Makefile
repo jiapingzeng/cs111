@@ -10,7 +10,7 @@ data = lab2b_list.csv
 graphs = lab2b_1.png lab2b_2.png lab2b_3.png lab2b_4.png lab2b_5.png
 profile = profile.out
 
-dist_files = Makefile README driver.sh lab2b.gp ${sources} ${data} ${graphs} #${profile}
+dist_files = Makefile README driver.sh lab2b.gp ${sources} ${data} ${graphs} ${profile}
 
 default: build
 
@@ -27,7 +27,7 @@ graphs: tests
 dist: graphs lab2b-905363270.tar.gz
 
 clean:
-	rm -rf *test* *.out *.o *.tar.gz lab2_list
+	rm -rf *test* a.out *.o *.tar.gz lab2_list
 
 lab2_list:
 	$(CC) lab2_list.c SortedList.o -o $@ $(CFLAGS)
