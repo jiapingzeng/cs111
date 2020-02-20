@@ -20,6 +20,11 @@ tests: build
 	bash driver.sh
 
 profile:
+	LD_PRELOAD="/usr/local/cs/gperftools-2.7/lib/libprofiler.so"
+	CPUPROFILE=./raw.gperf ./lab2_list
+	pprof --text ./lab2_list ./raw.gperf > profile.out
+	pprof --list=thread_routine ./lab2_list ./raw.gperf >> profile.out
+	rm -f ./raw.gperf
 
 graphs: tests
 	gnuplot lab2b.gp
