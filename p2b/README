@@ -18,8 +18,8 @@ Where do you believe most of the time/cycles are being spent in the high-thread 
 QUESTION 2.3.2 - Execution Profiling:
 Where (what lines of code) are consuming most of the cycles when the spin-lock version of the list exerciser is run with a large number of threads?
 
-    The spin-lock:
-        while (__sync_lock_test_and_set(&s_locks[hash], 1));
+    The lock function that performs the spin lock:
+        thread_time += lock(hash);
     is consuming the most cycles.
 
 Why does this operation become so expensive with large numbers of threads?
