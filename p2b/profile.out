@@ -1,0 +1,131 @@
+Total: 238 samples
+     187  78.6%  78.6%      187  78.6% lock
+      11   4.6%  83.2%       11   4.6% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:200
+       7   2.9%  86.1%       31  13.0% SortedList_insert
+       5   2.1%  88.2%       20   8.4% SortedList_lookup
+       4   1.7%  89.9%        4   1.7% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:160
+       4   1.7%  91.6%        4   1.7% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:205
+       4   1.7%  93.3%        4   1.7% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:1721
+       4   1.7%  95.0%        4   1.7% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:1730
+       3   1.3%  96.2%        3   1.3% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:165
+       3   1.3%  97.5%        3   1.3% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:1720
+       2   0.8%  98.3%        2   0.8% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:1729
+       1   0.4%  98.7%        1   0.4% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:130
+       1   0.4%  99.2%        1   0.4% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:203
+       1   0.4%  99.6%        1   0.4% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:204
+       1   0.4% 100.0%        1   0.4% ?? /usr/src/debug////////glibc-2.17-c758a686/string/../sysdeps/x86_64/multiarch/strcmp-sse42.S:1714
+       0   0.0% 100.0%      238 100.0% ?? /usr/src/debug////////glibc-2.17-c758a686/misc/../sysdeps/unix/sysv/linux/x86_64/clone.S:111
+       0   0.0% 100.0%      238 100.0% start_thread
+       0   0.0% 100.0%      238 100.0% thread_routine
+ROUTINE ====================== thread_routine in /u/eng/class/classjze/cs111/p2b/lab2_list.c
+     0    238 Total samples (flat / cumulative)
+     .      .  114: 
+     .      .  115:     exit(0);
+     .      .  116: }
+     .      .  117: 
+     .      .  118: void *thread_routine(void *ptr)
+---
+     .      .  119: {
+     .      .  120:     int i, hash = 0, t = *(int *)ptr, length;
+     .      .  121:     long long thread_time = 0;
+     .      .  122: 
+     .      .  123:     hash = hash_key((char *)&t);
+     .      .  124: 
+     .      .  125:     for (i = t * iterations; i < (t + 1) * iterations; i++)
+     .      .  126:     {
+     .    140  127:         thread_time += lock(hash);
+     .     31  128:         SortedList_insert(&lists[hash], &elements[i]);
+     .      .  129:         unlock(hash);
+     .      .  130:     }
+     .      .  131: 
+     .      .  132:     for (i = 0; i < lists_size; i++)
+     .      .  133:     {
+     .      .  134:         thread_time += lock(hash);
+     .      .  135:         length = SortedList_length(&lists[hash]);
+     .      .  136:         unlock(hash);
+     .      .  137:     }
+     .      .  138: 
+     .      .  139:     if (length < 0)
+     .      .  140:     {
+     .      .  141:         print_tag(stderr);
+     .      .  142:         fprintf(stderr, ": Invalid length\n");
+     .      .  143:         exit(1);
+     .      .  144:     }
+     .      .  145: 
+     .      .  146:     for (i = t * iterations; i < (t + 1) * iterations; i++)
+     .      .  147:     {
+     .     47  148:         thread_time += lock(hash);
+     .     20  149:         exitcode = SortedList_delete(SortedList_lookup(&lists[hash], elements[i].key));
+     .      .  150:         unlock(hash);
+     .      .  151: 
+     .      .  152:         if (exitcode)
+     .      .  153:         {
+     .      .  154:             print_tag(stderr);
+     .      .  155:             fprintf(stderr, ": Unable to find/delete element\n");
+     .      .  156:             exit(1);
+     .      .  157:         }
+     .      .  158:     }
+     .      .  159:     return (void *)thread_time;
+     .      .  160: }
+---
+     .      .  161: 
+     .      .  162: int hash_key(char *key)
+     .      .  163: {
+     .      .  164:     return key[0] % lists_size;
+     .      .  165: }
+ROUTINE ====================== thread_routine in /u/eng/class/classjze/cs111/p2b/lab2_list.c
+     0    238 Total samples (flat / cumulative)
+     .      .  114: 
+     .      .  115:     exit(0);
+     .      .  116: }
+     .      .  117: 
+     .      .  118: void *thread_routine(void *ptr)
+---
+     .      .  119: {
+     .      .  120:     int i, hash = 0, t = *(int *)ptr, length;
+     .      .  121:     long long thread_time = 0;
+     .      .  122: 
+     .      .  123:     hash = hash_key((char *)&t);
+     .      .  124: 
+     .      .  125:     for (i = t * iterations; i < (t + 1) * iterations; i++)
+     .      .  126:     {
+     .    140  127:         thread_time += lock(hash);
+     .     31  128:         SortedList_insert(&lists[hash], &elements[i]);
+     .      .  129:         unlock(hash);
+     .      .  130:     }
+     .      .  131: 
+     .      .  132:     for (i = 0; i < lists_size; i++)
+     .      .  133:     {
+     .      .  134:         thread_time += lock(hash);
+     .      .  135:         length = SortedList_length(&lists[hash]);
+     .      .  136:         unlock(hash);
+     .      .  137:     }
+     .      .  138: 
+     .      .  139:     if (length < 0)
+     .      .  140:     {
+     .      .  141:         print_tag(stderr);
+     .      .  142:         fprintf(stderr, ": Invalid length\n");
+     .      .  143:         exit(1);
+     .      .  144:     }
+     .      .  145: 
+     .      .  146:     for (i = t * iterations; i < (t + 1) * iterations; i++)
+     .      .  147:     {
+     .     47  148:         thread_time += lock(hash);
+     .     20  149:         exitcode = SortedList_delete(SortedList_lookup(&lists[hash], elements[i].key));
+     .      .  150:         unlock(hash);
+     .      .  151: 
+     .      .  152:         if (exitcode)
+     .      .  153:         {
+     .      .  154:             print_tag(stderr);
+     .      .  155:             fprintf(stderr, ": Unable to find/delete element\n");
+     .      .  156:             exit(1);
+     .      .  157:         }
+     .      .  158:     }
+     .      .  159:     return (void *)thread_time;
+     .      .  160: }
+---
+     .      .  161: 
+     .      .  162: int hash_key(char *key)
+     .      .  163: {
+     .      .  164:     return key[0] % lists_size;
+     .      .  165: }
