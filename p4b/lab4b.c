@@ -1,5 +1,6 @@
 #include <time.h>
 #include <math.h>
+#include <poll.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -14,7 +15,7 @@
 #include <mraa/aio.h>
 
 int period = 1, scale = 'F', logfd = 1;
-char buffer[16];
+char time_buffer[16];
 time_t current_time;
 struct tm *timeinfo;
 mraa_aio_context sensor;
@@ -28,9 +29,13 @@ int main(int argc, char **argv)
 {
     parse_options(argc, argv);
 
-    printf("period: %d, scale: %c\n", period, scale);
-
+    int bytes_read;
     uint16_t value;
+    char buffer[256];
+    struct pollfd pfds[1];
+
+    pfds[0].fd = STDIN_FILENO;
+    pfds[0].events = POLLIN | POLLHUP | POLLERR;
 
     sensor = mraa_aio_init(1);
     button = mraa_gpio_init(60);
@@ -40,14 +45,26 @@ int main(int argc, char **argv)
 
     while (1)
     {
+        poll(pfds, (nfds_t)2, 0);
+        if (pfds[0].revents & POLLIN)
+        {
+            bytes_read = read(pfds[0].fd, buffer, 256);
+            if (!bytes_read)
+            {
+                printf("Poll closed\n");
+                exit(0);
+            }
+            write(STDOUT_FILENO, buffer, bytes_read);
+        }
+
         time(&current_time);
         timeinfo = localtime(&current_time);
-        strftime(buffer, 16, "%H:%M:%S", timeinfo);
+        strftime(time_buffer, 16, "%H:%M:%S", timeinfo);
         value = mraa_aio_read(sensor);
 
-        printf("%s %.1f\n", buffer, get_temperature(value));
+        printf("%s %.1f\n", time_buffer, get_temperature(value));
         if (logfd > 1)
-            dprintf(logfd, "%s %.1f\n", buffer, get_temperature(value));
+            dprintf(logfd, "%s %.1f\n", time_buffer, get_temperature(value));
         sleep(period);
     }
 
@@ -60,7 +77,8 @@ void parse_options(int argc, char **argv)
     static struct option long_options[] = {
         {"period", required_argument, NULL, 'p'},
         {"scale", required_argument, NULL, 's'},
-        {"log", required_argument, NULL, 'l'}.{0, 0, 0, 0}};
+        {"log", required_argument, NULL, 'l'},
+        {0, 0, 0, 0}};
 
     while ((c = getopt_long(argc, argv, "psl", long_options, NULL)) != -1)
     {
@@ -81,7 +99,7 @@ void parse_options(int argc, char **argv)
             }
             break;
         case 'l':
-            logfd = open(otparg, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+            logfd = open(optarg, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
             if (logfd < 0)
             {
                 fprintf(stderr, "Unable to open/create output file '%s': %s\n", optarg, strerror(errno));
@@ -99,9 +117,9 @@ void button_pressed()
 {
     time(&current_time);
     timeinfo = localtime(&current_time);
-    strftime(buffer, 16, "%H:%M:%S", timeinfo);
+    strftime(time_buffer, 16, "%H:%M:%S", timeinfo);
 
-    printf("%s SHUTDOWN\n", buffer);
+    printf("%s SHUTDOWN\n", time_buffer);
 
     mraa_aio_close(sensor);
     mraa_gpio_close(button);
