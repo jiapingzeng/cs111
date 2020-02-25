@@ -3,7 +3,7 @@
 # ID: 905363270
 
 CC = gcc
-CFLAGS = -g -Wall -Wextra -lmraa
+CFLAGS = -g -Wall -Wextra -lmraa -lm
 
 dist_files = *.c Makefile README
 

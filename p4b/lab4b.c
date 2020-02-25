@@ -1,4 +1,5 @@
 #include <time.h>
+#include <math.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <signal.h>
@@ -16,6 +17,7 @@ mraa_gpio_context button;
 
 void parse_options(int argc, char **argv);
 void button_pressed();
+float get_temperature(uint16_t value);
 
 int main(int argc, char **argv)
 {
@@ -24,8 +26,6 @@ int main(int argc, char **argv)
     printf("period: %d, scale: %c\n", period, scale);
 
     uint16_t value;
-    float temperature, R;
-    const int B = 4275, R0 = 100000;
 
     sensor = mraa_aio_init(1);
     button = mraa_gpio_init(60);
@@ -39,11 +39,8 @@ int main(int argc, char **argv)
         timeinfo = localtime(&current_time);
         strftime(buffer, 16, "%H:%M:%S", timeinfo);
         value = mraa_aio_read(sensor);
-        R = 1023.0 / value - 1.0;
-        R = R0 * R;
-        temperature = 1.0 / (log(R / R0) / B + 1 / 298.15) - 273.15;
 
-        printf("%s %d\n", buffer, temperature);
+        printf("%s %f\n", buffer, get_temperature(value));
         sleep(period);
     }
 
@@ -95,4 +92,16 @@ void button_pressed()
     mraa_gpio_close(button);
 
     exit(0);
+}
+
+float get_temperature(uint16_t value)
+{
+    float temperature;
+    const int B = 4275, R0 = 100000;
+    float R = 1023.0/value-1.0;
+    R = R0*R;
+    temperature = 1.0/(log(R/R0)/B+1/298.15)-273.15;
+    if (scale == 'F')
+        temperature = temperature * 1.8 + 32.0;
+    return temperature;
 }
