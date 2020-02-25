@@ -29,6 +29,8 @@ int main(int argc, char **argv)
 {
     parse_options(argc, argv);
 
+    printf("period: %d, scale: %c, logfd: %d\n", period, scale, logfd);
+
     int bytes_read;
     uint16_t value;
     char buffer[256];
@@ -54,7 +56,8 @@ int main(int argc, char **argv)
                 printf("Poll closed\n");
                 exit(0);
             }
-            write(STDOUT_FILENO, buffer, bytes_read);
+            if (logfd > 1)
+                write(logfd, buffer, bytes_read);
         }
 
         time(&current_time);
