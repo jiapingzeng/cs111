@@ -1,14 +1,19 @@
 #include <time.h>
 #include <math.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <signal.h>
 #include <string.h>
 #include <getopt.h>
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <mraa/gpio.h>
 #include <mraa/aio.h>
 
-int period = 1, scale = 'F';
+int period = 1, scale = 'F', logfd = 1;
 char buffer[16];
 time_t current_time;
 struct tm *timeinfo;
@@ -40,7 +45,9 @@ int main(int argc, char **argv)
         strftime(buffer, 16, "%H:%M:%S", timeinfo);
         value = mraa_aio_read(sensor);
 
-        printf("%s %f\n", buffer, get_temperature(value));
+        printf("%s %.1f\n", buffer, get_temperature(value));
+        if (logfd > 1)
+            dprintf(logfd, "%s %.1f\n", buffer, get_temperature(value));
         sleep(period);
     }
 
@@ -53,9 +60,9 @@ void parse_options(int argc, char **argv)
     static struct option long_options[] = {
         {"period", required_argument, NULL, 'p'},
         {"scale", required_argument, NULL, 's'},
-        {0, 0, 0, 0}};
+        {"log", required_argument, NULL, 'l'}.{0, 0, 0, 0}};
 
-    while ((c = getopt_long(argc, argv, "ps", long_options, NULL)) != -1)
+    while ((c = getopt_long(argc, argv, "psl", long_options, NULL)) != -1)
     {
         switch (c)
         {
@@ -70,6 +77,14 @@ void parse_options(int argc, char **argv)
             else
             {
                 fprintf(stderr, "Invalid scale option: %s\n", optarg);
+                exit(1);
+            }
+            break;
+        case 'l':
+            logfd = open(otparg, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
+            if (logfd < 0)
+            {
+                fprintf(stderr, "Unable to open/create output file '%s': %s\n", optarg, strerror(errno));
                 exit(1);
             }
             break;
@@ -98,9 +113,9 @@ float get_temperature(uint16_t value)
 {
     float temperature;
     const int B = 4275, R0 = 100000;
-    float R = 1023.0/value-1.0;
-    R = R0*R;
-    temperature = 1.0/(log(R/R0)/B+1/298.15)-273.15;
+    float R = 1023.0 / value - 1.0;
+    R = R0 * R;
+    temperature = 1.0 / (log(R / R0) / B + 1 / 298.15) - 273.15;
     if (scale == 'F')
         temperature = temperature * 1.8 + 32.0;
     return temperature;
