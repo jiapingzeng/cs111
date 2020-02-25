@@ -24,6 +24,8 @@ int main(int argc, char **argv)
     printf("period: %d, scale: %c\n", period, scale);
 
     uint16_t value;
+    float temperature, R;
+    const int B = 4275, R0 = 100000;
 
     sensor = mraa_aio_init(1);
     button = mraa_gpio_init(60);
@@ -37,8 +39,11 @@ int main(int argc, char **argv)
         timeinfo = localtime(&current_time);
         strftime(buffer, 16, "%H:%M:%S", timeinfo);
         value = mraa_aio_read(sensor);
+        R = 1023.0 / value - 1.0;
+        R = R0 * R;
+        temperature = 1.0 / (log(R / R0) / B + 1 / 298.15) - 273.15;
 
-        printf("%s %d\n", buffer, value);
+        printf("%s %d\n", buffer, temperature);
         sleep(period);
     }
 
