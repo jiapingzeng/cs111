@@ -1,0 +1,7 @@
+.vscode
+*.out
+*.tar.gz
+
+*test*
+lab4b
+functions.sh
