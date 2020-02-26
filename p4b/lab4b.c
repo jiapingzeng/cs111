@@ -14,7 +14,7 @@
 #include <mraa/gpio.h>
 #include <mraa/aio.h>
 
-int period = 1, scale = 'F', logfd = 1;
+int period = 1, scale = 'F', logfd = 1, stop = 0;
 char time_buffer[16];
 time_t current_time;
 struct tm *timeinfo;
@@ -22,14 +22,13 @@ mraa_aio_context sensor;
 mraa_gpio_context button;
 
 void parse_options(int argc, char **argv);
+void process_command(char *command);
 void button_pressed();
 float get_temperature(uint16_t value);
 
 int main(int argc, char **argv)
 {
     parse_options(argc, argv);
-
-    printf("period: %d, scale: %c, logfd: %d\n", period, scale, logfd);
 
     int bytes_read;
     uint16_t value;
@@ -58,17 +57,22 @@ int main(int argc, char **argv)
             }
             if (logfd > 1)
                 write(logfd, buffer, bytes_read);
+            buffer[bytes_read] = '\0';
+            process_command(buffer);
         }
 
-        time(&current_time);
-        timeinfo = localtime(&current_time);
-        strftime(time_buffer, 16, "%H:%M:%S", timeinfo);
-        value = mraa_aio_read(sensor);
+        if (!stop)
+        {
+            time(&current_time);
+            timeinfo = localtime(&current_time);
+            strftime(time_buffer, 16, "%H:%M:%S", timeinfo);
+            value = mraa_aio_read(sensor);
 
-        printf("%s %.1f\n", time_buffer, get_temperature(value));
-        if (logfd > 1)
-            dprintf(logfd, "%s %.1f\n", time_buffer, get_temperature(value));
-        sleep(period);
+            printf("%s %.1f\n", time_buffer, get_temperature(value));
+            if (logfd > 1)
+                dprintf(logfd, "%s %.1f\n", time_buffer, get_temperature(value));
+            sleep(period);
+        }
     }
 
     return 0;
@@ -113,6 +117,28 @@ void parse_options(int argc, char **argv)
             fprintf(stderr, "Unable to retrieve option\n");
             exit(1);
         }
+    }
+}
+
+void process_command(char *command)
+{
+    if (strcmp(command, "SCALE=F") == 0) {
+        scale = 'F';
+    } else if (strcmp(command, "SCALE=C\n") == 0) {
+        scale = 'C';
+    } else if (strncmp(command, "PERIOD=", 7) == 0) {
+        char str[8];
+        strncpy(str, command+7*sizeof(char), 7);
+        str[7] = '\0';
+        period = atoi(str);
+    } else if (strcmp(command, "STOP\n") == 0) {
+        stop = 1;
+    } else if (strcmp(command, "START\n") == 0) {
+        stop = 0;
+    } else if (strncmp(command, "LOG ", 4) == 0) {
+        // do nothing
+    } else if (strcmp(command, "OFF\n") == 0) {
+        button_pressed();
     }
 }
 

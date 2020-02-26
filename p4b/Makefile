@@ -10,7 +10,6 @@ dist_files = *.c Makefile README
 default: lab4b
 
 check: lab4b
-	./lab4b
 
 clean:
 	rm -rf *test* a.out *.o *.tar.gz lab4b
