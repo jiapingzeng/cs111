@@ -59,9 +59,9 @@ int main(int argc, char **argv)
                     strncpy(command_buffer, buffer+start, i - start);
                     command_buffer[i-start] = '\0';
                     //printf("i: %d, start: %d, command: %s\n", i, start, command_buffer);
-                    if (logfd > 1)
-                        write(logfd, command_buffer, i - start);
-                    run_command(command_buffer);
+                    //if (logfd > 1)
+                    //    write(logfd, command_buffer, i - start);
+                    run_command(strtok(command_buffer, "\n"));
                     start = i;
                 }
             }
@@ -128,6 +128,7 @@ void parse_options(int argc, char **argv)
 
 void run_command(char *command)
 {
+    dprintf(logfd, "%s\n", command);
     if (strncmp(command, "SCALE=F", 7) == 0)
     {
         scale = 'F';
@@ -157,6 +158,7 @@ void run_command(char *command)
     }
     else if (strncmp(command, "OFF", 3) == 0)
     {
+        dprintf(logfd, "turning off\n");
         if (logfd > 1)
             write(logfd, "\n", 1);
         button_pressed();
