@@ -5,7 +5,7 @@
 CC = gcc
 CFLAGS = -g -Wall -Wextra -lmraa -lm
 
-dist_files = *.c Makefile README
+dist_files = lab4b.c Makefile README
 
 default: lab4b
 
@@ -17,7 +17,7 @@ clean:
 dist: lab4b-905363270.tar.gz
 
 lab4b:
-	$(CC) *.c -o $@ $(CFLAGS)
+	$(CC) lab4b.c -o $@ $(CFLAGS)
 
 lab4b-905363270.tar.gz:
 	tar -czf $@ $(dist_files)

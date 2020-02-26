@@ -14,7 +14,7 @@
 #include <mraa/gpio.h>
 #include <mraa/aio.h>
 
-int period = 1, scale = 'F', logfd = 1, stop = 0;
+int period = 1, scale = 'F', logfd = 1, stop = 0, pressed = 0;
 char time_buffer[16];
 time_t current_time;
 struct tm *timeinfo;
@@ -22,7 +22,7 @@ mraa_aio_context sensor;
 mraa_gpio_context button;
 
 void parse_options(int argc, char **argv);
-void process_command(char *command);
+void run_command(char *command);
 void button_pressed();
 float get_temperature(uint16_t value);
 
@@ -44,32 +44,30 @@ int main(int argc, char **argv)
     mraa_gpio_dir(button, MRAA_GPIO_IN);
     mraa_gpio_isr(button, MRAA_GPIO_EDGE_RISING, &button_pressed, NULL);
 
-    while (1)
+    while (!pressed)
     {
         poll(pfds, (nfds_t)2, 0);
         if (pfds[0].revents & POLLIN)
         {
             bytes_read = read(pfds[0].fd, buffer, 256);
-            if (!bytes_read)
-            {
-                printf("Poll closed\n");
-                exit(0);
-            }
-            for (i = 0, start = 0; i < bytes_read && start < bytes_read; i++)
+            if (bytes_read <= 0)
+                button_pressed();
+            for (i = 0, start = 0; i < bytes_read; i++)
             {
                 if (buffer[i] == '\n')
                 {
-                    strncpy(command_buffer, buffer, i - start);
-                    command_buffer[start] = '\0';
-                    process_command(command_buffer);
-                    start = i;
+                    strncpy(command_buffer, buffer+start, i - start);
+                    command_buffer[i-start] = '\0';
+                    //printf("i: %d, start: %d, command: %s\n", i, start, command_buffer);
                     if (logfd > 1)
                         write(logfd, command_buffer, i - start);
+                    run_command(command_buffer);
+                    start = i;
                 }
             }
         }
 
-        if (!stop)
+        if (!stop && !pressed)
         {
             time(&current_time);
             timeinfo = localtime(&current_time);
@@ -128,13 +126,13 @@ void parse_options(int argc, char **argv)
     }
 }
 
-void process_command(char *command)
+void run_command(char *command)
 {
-    if (strcmp(command, "SCALE=F") == 0)
+    if (strncmp(command, "SCALE=F", 7) == 0)
     {
         scale = 'F';
     }
-    else if (strcmp(command, "SCALE=C\n") == 0)
+    else if (strncmp(command, "SCALE=C", 7) == 0)
     {
         scale = 'C';
     }
@@ -145,11 +143,11 @@ void process_command(char *command)
         str[7] = '\0';
         period = atoi(str);
     }
-    else if (strcmp(command, "STOP\n") == 0)
+    else if (strncmp(command, "STOP", 4) == 0)
     {
         stop = 1;
     }
-    else if (strcmp(command, "START\n") == 0)
+    else if (strncmp(command, "START", 5) == 0)
     {
         stop = 0;
     }
@@ -157,8 +155,10 @@ void process_command(char *command)
     {
         // do nothing
     }
-    else if (strcmp(command, "OFF\n") == 0)
+    else if (strncmp(command, "OFF", 3) == 0)
     {
+        if (logfd > 1)
+            write(logfd, "\n", 1);
         button_pressed();
     }
 }
@@ -170,11 +170,12 @@ void button_pressed()
     strftime(time_buffer, 16, "%H:%M:%S", timeinfo);
 
     printf("%s SHUTDOWN\n", time_buffer);
+    if (logfd > 1)
+        dprintf(logfd, "%s SHUTDOWN\n", time_buffer);
 
+    pressed = 1;
     mraa_aio_close(sensor);
     mraa_gpio_close(button);
-
-    exit(0);
 }
 
 float get_temperature(uint16_t value)
