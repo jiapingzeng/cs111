@@ -30,9 +30,9 @@ int main(int argc, char **argv)
 {
     parse_options(argc, argv);
 
-    int bytes_read;
+    int i, start, bytes_read;
     uint16_t value;
-    char buffer[256];
+    char command_buffer[32], buffer[256];
     struct pollfd pfds[1];
 
     pfds[0].fd = STDIN_FILENO;
@@ -55,10 +55,18 @@ int main(int argc, char **argv)
                 printf("Poll closed\n");
                 exit(0);
             }
-            if (logfd > 1)
-                write(logfd, buffer, bytes_read);
-            buffer[bytes_read] = '\0';
-            process_command(buffer);
+            for (i = 0, start = 0; i < bytes_read && start < bytes_read; i++)
+            {
+                if (buffer[i] == '\n')
+                {
+                    strncpy(command_buffer, buffer, i - start);
+                    command_buffer[start] = '\0';
+                    process_command(command_buffer);
+                    start = i;
+                    if (logfd > 1)
+                        write(logfd, command_buffer, i - start);
+                }
+            }
         }
 
         if (!stop)
@@ -122,22 +130,35 @@ void parse_options(int argc, char **argv)
 
 void process_command(char *command)
 {
-    if (strcmp(command, "SCALE=F") == 0) {
+    if (strcmp(command, "SCALE=F") == 0)
+    {
         scale = 'F';
-    } else if (strcmp(command, "SCALE=C\n") == 0) {
+    }
+    else if (strcmp(command, "SCALE=C\n") == 0)
+    {
         scale = 'C';
-    } else if (strncmp(command, "PERIOD=", 7) == 0) {
+    }
+    else if (strncmp(command, "PERIOD=", 7) == 0)
+    {
         char str[8];
-        strncpy(str, command+7*sizeof(char), 7);
+        strncpy(str, command + 7 * sizeof(char), 7);
         str[7] = '\0';
         period = atoi(str);
-    } else if (strcmp(command, "STOP\n") == 0) {
+    }
+    else if (strcmp(command, "STOP\n") == 0)
+    {
         stop = 1;
-    } else if (strcmp(command, "START\n") == 0) {
+    }
+    else if (strcmp(command, "START\n") == 0)
+    {
         stop = 0;
-    } else if (strncmp(command, "LOG ", 4) == 0) {
+    }
+    else if (strncmp(command, "LOG ", 4) == 0)
+    {
         // do nothing
-    } else if (strcmp(command, "OFF\n") == 0) {
+    }
+    else if (strcmp(command, "OFF\n") == 0)
+    {
         button_pressed();
     }
 }
