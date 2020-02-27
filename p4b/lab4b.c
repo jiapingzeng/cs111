@@ -1,3 +1,7 @@
+// NAME: Jiaping Zeng
+// EMAIL: jiapingzeng@ucla.edu
+// ID: 905363270
+
 #include <time.h>
 #include <math.h>
 #include <poll.h>

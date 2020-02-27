@@ -2,5 +2,14 @@ NAME: Jiaping Zeng
 EMAIL: jiapingzeng@ucla.edu
 ID: 905363270
 
+Included files:
+  - lab4b.c: a C program for an embedded application that builds and runs on an embedded system
+  - Makefile:
+    - default: compiles lab4b.c
+    - check: run smoke check to test basic argument usage
+    - clean: delete programs and output created
+    - dist: build the distribution tarball
+  - driver.sh: helper script for smoke check
+
 References:
 https://stackoverflow.com/questions/5141960/get-the-current-time-in-c
