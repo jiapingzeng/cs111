@@ -1,0 +1,8 @@
+Included files:
+  - lab3a.c: 
+  - Makefile:
+    - default: compile lab3a.c to produce executable lab3a
+    - dist: build the distribution tarball
+    - clean: delete programs and output created
+
+References:

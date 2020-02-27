@@ -1,0 +1,7 @@
+.vscode
+.out
+.tar.gz
+
+*test*
+lab3a
+functions.sh
