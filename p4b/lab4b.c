@@ -128,7 +128,8 @@ void parse_options(int argc, char **argv)
 
 void run_command(char *command)
 {
-    dprintf(logfd, "%s\n", command);
+    if (logfd > 1)
+        dprintf(logfd, "%s\n", command);
     if (strncmp(command, "SCALE=F", 7) == 0)
     {
         scale = 'F';
@@ -158,9 +159,7 @@ void run_command(char *command)
     }
     else if (strncmp(command, "OFF", 3) == 0)
     {
-        dprintf(logfd, "turning off\n");
-        if (logfd > 1)
-            write(logfd, "\n", 1);
+        //dprintf(logfd, "turning off\n");
         button_pressed();
     }
 }

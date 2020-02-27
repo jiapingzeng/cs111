@@ -9,7 +9,9 @@ dist_files = lab4b.c Makefile README
 
 default: lab4b
 
-check: lab4b
+check:
+	make clean && make
+	bash driver.sh
 
 clean:
 	rm -rf *test* a.out *.o *.tar.gz lab4b
