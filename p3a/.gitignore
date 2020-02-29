@@ -1,7 +1,10 @@
 .vscode
-.out
-.tar.gz
+*.out
+*.tar.gz
+*.csv
+*.img
 
 *test*
+fs
 lab3a
 functions.sh
