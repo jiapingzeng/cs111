@@ -7,11 +7,12 @@
 #include "ext2_fs.h"
 
 int fd;
+const int block_size = 1024;
 struct ext2_super_block superblock;
 
 void print_superblock();
 void print_group();
-void print_bfree();
+void print_bfree(u_int32_t position);
 void print_ifree();
 void print_inode();
 void print_dirent();
@@ -36,7 +37,7 @@ int main(int argc, char **argv)
     // group summary
     print_group();
     // free block entries
-    print_bfree();
+    // print_bfree();
     // free I-node entries
     print_ifree();
     // I-node summary
@@ -51,7 +52,7 @@ int main(int argc, char **argv)
 
 void print_superblock()
 {
-    pread(fd, &superblock, sizeof(superblock), 1024);
+    pread(fd, &superblock, sizeof(superblock), block_size);
     printf("SUPERBLOCK,%d,%d,%d,%d,%d,%d,%d\n",
            superblock.s_blocks_count,
            superblock.s_inodes_count,
@@ -65,7 +66,7 @@ void print_superblock()
 void print_group()
 {
     struct ext2_group_desc group;
-    pread(fd, &group, sizeof(group), 1024 + sizeof(superblock));
+    pread(fd, &group, sizeof(group), 2 * block_size);
     printf("GROUP,%d,%d,%d,%d,%d,%d,%d,%d\n",
            0,
            superblock.s_blocks_count,
@@ -75,11 +76,37 @@ void print_group()
            group.bg_block_bitmap,
            group.bg_inode_bitmap,
            group.bg_inode_table);
+    print_bfree(1024 + sizeof(superblock) + sizeof(group));
 }
 
-void print_bfree()
+void print_bfree(u_int32_t position)
 {
-    printf("BFREE\n");
+    char c, buffer[1024];
+    u_int32_t i, j;
+    pread(fd, &buffer, block_size, position * block_size);
+
+    for (i = 0; i < superblock.s_blocks_count / 8; i++)
+    {
+        c = buffer[i];
+        printf("byte: %d\n", c);
+        for (j = 0; j < 8; j++)
+        {
+            if (!(c & 1))
+                printf("BFREE,%d\n", i * 8 + j);
+            c >>= 2;
+        }
+    }
+    /*
+    u_int32_t i, j;
+    char c;
+    for (i = 0; i < superblock.s_blocks_count / 8; i++)
+    {
+        pread(fd, &c, 1, position + i);
+        for (j = 0; j < 8; j++, c /= 2)
+            if (c % 2 == 0)
+                printf("BFREE,%d,%d\n", i * 8 + j, c);
+    }
+    */
 }
 
 void print_ifree()
