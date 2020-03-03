@@ -1,3 +1,4 @@
+#include <time.h>
 #include <stdio.h>
 #include <fcntl.h>
 #include <unistd.h>
@@ -6,15 +7,15 @@
 #include <sys/stat.h>
 #include "ext2_fs.h"
 
-int fd, block_size;
+int fd, block_size, superblock_offset = 1024;
 struct ext2_super_block superblock;
 
 void print_superblock();
 void print_group();
 void print_bfree(u_int32_t pos);
 void print_ifree(u_int32_t pos);
-void print_inode();
-void print_dirent();
+void print_inode(u_int32_t pos);
+void print_dirent(u_int32_t pos, u_int32_t inode);
 void print_indirect();
 
 int main(int argc, char **argv)
@@ -31,27 +32,18 @@ int main(int argc, char **argv)
         fprintf(stderr, "Unable to open file: %s\n", argv[1]);
         exit(1);
     }
+
     // superblock summary
     print_superblock();
-    // group summary
+    // group summary, bfree, ifree, inode, dirent and indirect
     print_group();
-    // free block entries
-    // print_bfree();
-    // free I-node entries
-    // print_ifree();
-    // I-node summary
-    print_inode();
-    // directory entries
-    print_dirent();
-    // indirect block references
-    print_indirect();
 
     return 0;
 }
 
 void print_superblock()
 {
-    pread(fd, &superblock, sizeof(superblock), 1024);
+    pread(fd, &superblock, sizeof(superblock), superblock_offset);
     block_size = EXT2_MIN_BLOCK_SIZE << superblock.s_log_block_size;
     printf("SUPERBLOCK,%d,%d,%d,%d,%d,%d,%d\n",
            superblock.s_blocks_count,
@@ -66,7 +58,7 @@ void print_superblock()
 void print_group()
 {
     struct ext2_group_desc group;
-    pread(fd, &group, sizeof(group), 2 * block_size);
+    pread(fd, &group, sizeof(group), superblock_offset + block_size);
     printf("GROUP,%d,%d,%d,%d,%d,%d,%d,%d\n",
            0,
            superblock.s_blocks_count,
@@ -78,18 +70,18 @@ void print_group()
            group.bg_inode_table);
     print_bfree(group.bg_block_bitmap);
     print_ifree(group.bg_inode_bitmap);
+    print_inode(group.bg_inode_table);
 }
 
 void print_bfree(u_int32_t pos)
 {
-    char c, buffer[8];
+    char c, *buffer;
     u_int32_t i, j;
-    pread(fd, &buffer, superblock.s_blocks_count / 8, pos * block_size);
-
+    buffer = (char *)malloc(sizeof(char) * superblock.s_blocks_count / 8);
+    pread(fd, buffer, superblock.s_blocks_count / 8, superblock_offset + (pos - 1) * block_size);
     for (i = 0; i < superblock.s_blocks_count / 8; i++)
     {
         c = buffer[i];
-        //printf("byte: %d\n", c);
         for (j = 0; j < 8; j++)
         {
             if (!(c & 1))
@@ -101,13 +93,13 @@ void print_bfree(u_int32_t pos)
 
 void print_ifree(u_int32_t pos)
 {
-    char c, buffer[8];
+    char c, *buffer;
     u_int32_t i, j;
-    pread(fd, &buffer, superblock.s_inodes_count / 8, pos * block_size);
+    buffer = (char *)malloc(sizeof(char) * superblock.s_inodes_count / 8);
+    pread(fd, buffer, superblock.s_inodes_count / 8, superblock_offset + (pos - 1) * block_size);
     for (i = 0; i < superblock.s_inodes_count / 8; i++)
     {
         c = buffer[i];
-        //printf("byte: %d\n", c);
         for (j = 0; j < 8; j++)
         {
             if (!(c & 1))
@@ -117,14 +109,82 @@ void print_ifree(u_int32_t pos)
     }
 }
 
-void print_inode()
+void print_inode(u_int32_t pos)
 {
-    printf("INODE\n");
+    /*
+    // calculation might be unecessary since there is only one group
+    int inodes_per_block = block_size / superblock.s_inode_size;
+    int inode_table_blocks = superblock.s_inodes_per_group / inodes_per_block;
+    */
+    struct ext2_inode inode;
+    char file_type, ctime_str[32], mtime_str[32], atime_str[32];
+    time_t ctime, mtime, atime;
+    u_int32_t i, j;
+    for (i = 0; i < superblock.s_inodes_count; i++)
+    {
+        pread(fd, &inode, superblock.s_inode_size, superblock_offset + (pos - 1) * block_size + i * superblock.s_inode_size);
+        if (inode.i_mode && inode.i_links_count)
+        {
+            // get file type
+            file_type = '?';
+            if (S_ISREG(inode.i_mode))
+                file_type = 'f';
+            else if (S_ISDIR(inode.i_mode))
+                file_type = 'd';
+            else if (S_ISLNK(inode.i_mode))
+                file_type = 's';
+
+            // process time
+            ctime = inode.i_ctime;
+            mtime = inode.i_mtime;
+            atime = inode.i_atime;
+            strftime(ctime_str, 32, "%x %X", gmtime(&ctime));
+            strftime(mtime_str, 32, "%x %X", gmtime(&mtime));
+            strftime(atime_str, 32, "%x %X", gmtime(&atime));
+
+            // print inode summary
+            printf("INODE,%d,%c,%o,%d,%d,%d,%s,%s,%s,%d,%d",
+                   i + 1,
+                   file_type,
+                   inode.i_mode & 0xFFF,
+                   inode.i_uid,
+                   inode.i_gid,
+                   inode.i_links_count,
+                   ctime_str,
+                   mtime_str,
+                   atime_str,
+                   inode.i_size,
+                   inode.i_blocks);
+            if (file_type == 'f' || file_type == 'd' || (file_type == 's' && inode.i_size >= 60))
+                for (j = 0; j < EXT2_N_BLOCKS; j++)
+                    printf(",%d", inode.i_block[j]);
+            printf("\n");
+
+            if (file_type == 'd')
+                for (j = 0; j < EXT2_NDIR_BLOCKS; j++)
+                    if (inode.i_block[j])
+                        print_dirent(inode.i_block[j], i + 1);
+        }
+    }
 }
 
-void print_dirent()
+void print_dirent(u_int32_t pos, u_int32_t inode)
 {
-    printf("DIRENT\n");
+    int i, offset = 0;
+    struct ext2_dir_entry dir;
+    for (i = 0; i < block_size; i += offset)
+    {
+        pread(fd, &dir, sizeof(dir), superblock_offset + (pos - 1) * block_size + i);
+        if (dir.inode)
+            printf("DIRENT,%d,%d,%d,%d,%d,'%s'\n",
+                   inode,
+                   i,
+                   dir.inode,
+                   dir.rec_len,
+                   dir.name_len,
+                   dir.name);
+        offset = dir.rec_len;
+    }
 }
 
 void print_indirect()
