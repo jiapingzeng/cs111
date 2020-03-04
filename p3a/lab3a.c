@@ -15,7 +15,7 @@ void print_group();
 void print_bfree(u_int32_t pos);
 void print_ifree(u_int32_t pos);
 void print_inode(u_int32_t pos);
-void print_dirent(u_int32_t pos, u_int32_t parent);
+void print_dirent(u_int32_t pos, u_int32_t parent, int level);
 void print_indirect(u_int32_t pos, u_int32_t parent, int level, int level_offset, int local_offset);
 
 int main(int argc, char **argv)
@@ -158,59 +158,83 @@ void print_inode(u_int32_t pos)
 
             // print directory entries
             if (file_type == 'd')
-                for (j = 0; j < EXT2_NDIR_BLOCKS; j++)
+                for (j = 0; j < EXT2_TIND_BLOCK; j++)
                     if (inode.i_block[j])
-                        print_dirent(inode.i_block[j], i + 1);
+                    {
+                        if (j < EXT2_IND_BLOCK)
+                            print_dirent(inode.i_block[j], i + 1, 0);
+                        else
+                            print_dirent(inode.i_block[j], i + 1, j - EXT2_IND_BLOCK + 1);
+                    }
 
             // print indirect block references
             if (file_type == 'f' || file_type == 'd')
                 for (j = EXT2_IND_BLOCK; j <= EXT2_TIND_BLOCK; j++)
                     if (inode.i_block[j])
-                        print_indirect(inode.i_block[j], i + 1, j - EXT2_IND_BLOCK, EXT2_IND_BLOCK, 0);
+                        print_indirect(inode.i_block[j], i + 1, j - EXT2_IND_BLOCK + 1, EXT2_IND_BLOCK, 0);
         }
     }
 }
 
-void print_dirent(u_int32_t pos, u_int32_t parent)
+void print_dirent(u_int32_t pos, u_int32_t parent, int level)
 {
+    if (level < 0)
+        return;
     int i, offset = 0;
-    struct ext2_dir_entry dir;
-    for (i = 0; i < block_size; i += offset)
+    if (level == 0)
     {
-        pread(fd, &dir, sizeof(dir), superblock_offset + (pos - 1) * block_size + i);
-        if (dir.inode)
-            printf("DIRENT,%d,%d,%d,%d,%d,'%s'\n",
-                   parent,
-                   i,
-                   dir.inode,
-                   dir.rec_len,
-                   dir.name_len,
-                   dir.name);
-        offset = dir.rec_len;
+        // direct dirent
+        struct ext2_dir_entry dir;
+        for (i = 0; i < block_size; i += offset)
+        {
+            pread(fd, &dir, sizeof(dir), superblock_offset + (pos - 1) * block_size + i);
+            if (dir.inode)
+                printf("DIRENT,%d,%d,%d,%d,%d,'%s'\n",
+                       parent,
+                       i,
+                       dir.inode,
+                       dir.rec_len,
+                       dir.name_len,
+                       dir.name);
+            offset = dir.rec_len;
+        }
+    }
+    else
+    {
+        // scan indirect dirent
+        u_int32_t buffer;
+        for (i = 0; i < block_size / 4; i++)
+        {
+            offset = superblock_offset + (pos - 1) * block_size + i * sizeof(buffer);
+            pread(fd, &buffer, sizeof(buffer), offset);
+            if (buffer)
+                print_dirent(buffer, parent, level - 1);
+        }
     }
 }
 
 void print_indirect(u_int32_t pos, u_int32_t parent, int level, int level_offset, int local_offset)
 {
-    if (level < 0)
+    if (level <= 0)
         return;
     int i, offset;
     u_int32_t buffer;
     for (i = 0; i < block_size / 4; i++)
     {
+        // update offsets
         offset = superblock_offset + (pos - 1) * block_size + i * sizeof(buffer);
-        if (level >= 1 && level_offset == EXT2_IND_BLOCK)
+        if (level >= 2 && level_offset == EXT2_IND_BLOCK)
             level_offset += 256;
-        if (level == 2)
+        if (level == 3)
             level_offset += 256 * 256;
-
+        // read and print entry
         pread(fd, &buffer, sizeof(buffer), offset);
         if (buffer)
         {
             local_offset += i;
             printf("INDIRECT,%d,%d,%d,%d,%d\n",
                    parent,
-                   level + 1,
+                   level,
                    level_offset + local_offset,
                    pos,
                    buffer);
