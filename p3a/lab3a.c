@@ -15,8 +15,8 @@ void print_group();
 void print_bfree(u_int32_t pos);
 void print_ifree(u_int32_t pos);
 void print_inode(u_int32_t pos);
-void print_dirent(u_int32_t pos, u_int32_t inode);
-void print_indirect();
+void print_dirent(u_int32_t pos, u_int32_t parent);
+void print_indirect(u_int32_t pos, u_int32_t parent, int level, int level_offset);
 
 int main(int argc, char **argv)
 {
@@ -35,6 +35,7 @@ int main(int argc, char **argv)
 
     // superblock summary
     print_superblock();
+
     // group summary, bfree, ifree, inode, dirent and indirect
     print_group();
 
@@ -111,11 +112,6 @@ void print_ifree(u_int32_t pos)
 
 void print_inode(u_int32_t pos)
 {
-    /*
-    // calculation might be unecessary since there is only one group
-    int inodes_per_block = block_size / superblock.s_inode_size;
-    int inode_table_blocks = superblock.s_inodes_per_group / inodes_per_block;
-    */
     struct ext2_inode inode;
     char file_type, ctime_str[32], mtime_str[32], atime_str[32];
     time_t ctime, mtime, atime;
@@ -160,15 +156,22 @@ void print_inode(u_int32_t pos)
                     printf(",%d", inode.i_block[j]);
             printf("\n");
 
+            // print directory entries
             if (file_type == 'd')
                 for (j = 0; j < EXT2_NDIR_BLOCKS; j++)
                     if (inode.i_block[j])
                         print_dirent(inode.i_block[j], i + 1);
+
+            // print indirect block references
+            if (file_type == 'f' || file_type == 'd')
+                for (j = EXT2_IND_BLOCK; j <= EXT2_TIND_BLOCK; j++)
+                    if (inode.i_block[j])
+                        print_indirect(inode.i_block[j], i + 1, j - EXT2_IND_BLOCK, 0);
         }
     }
 }
 
-void print_dirent(u_int32_t pos, u_int32_t inode)
+void print_dirent(u_int32_t pos, u_int32_t parent)
 {
     int i, offset = 0;
     struct ext2_dir_entry dir;
@@ -177,7 +180,7 @@ void print_dirent(u_int32_t pos, u_int32_t inode)
         pread(fd, &dir, sizeof(dir), superblock_offset + (pos - 1) * block_size + i);
         if (dir.inode)
             printf("DIRENT,%d,%d,%d,%d,%d,'%s'\n",
-                   inode,
+                   parent,
                    i,
                    dir.inode,
                    dir.rec_len,
@@ -187,7 +190,31 @@ void print_dirent(u_int32_t pos, u_int32_t inode)
     }
 }
 
-void print_indirect()
+void print_indirect(u_int32_t pos, u_int32_t parent, int level, int level_offset)
 {
-    printf("INDIRECT\n");
+    if (level < 0)
+        return;
+    int i, offset, local_offset;
+    u_int32_t buffer;
+    for (i = 0; i < EXT2_N_BLOCKS; i++)
+    {
+        offset = superblock_offset + (pos - 1) * block_size + i * sizeof(buffer);
+        local_offset = i + EXT2_NDIR_BLOCKS;
+        if (level == 1 && !level_offset)
+            level_offset += 256;
+        else if (level == 2)
+            level_offset += 256 + 256 * 256;
+        
+        pread(fd, &buffer, sizeof(buffer), offset);
+        if (buffer)
+        {
+            printf("INDIRECT,%d,%d,%d,%d,%d\n",
+                   parent,
+                   level + 1,
+                   level_offset + local_offset,
+                   pos,
+                   buffer);
+            print_indirect(buffer, parent, level - 1, level_offset);
+        }
+    }
 }

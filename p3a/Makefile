@@ -1,7 +1,7 @@
 CC = gcc
 CFLAGS = -g -Wall -Wextra
 
-dist_files = lab3a.c Makefile README
+dist_files = lab3a.c ext2_fs.h Makefile README
 
 default: lab3a
 
