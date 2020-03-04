@@ -16,7 +16,7 @@ void print_bfree(u_int32_t pos);
 void print_ifree(u_int32_t pos);
 void print_inode(u_int32_t pos);
 void print_dirent(u_int32_t pos, u_int32_t parent);
-void print_indirect(u_int32_t pos, u_int32_t parent, int level, int level_offset);
+void print_indirect(u_int32_t pos, u_int32_t parent, int level, int level_offset, int local_offset);
 
 int main(int argc, char **argv)
 {
@@ -166,7 +166,7 @@ void print_inode(u_int32_t pos)
             if (file_type == 'f' || file_type == 'd')
                 for (j = EXT2_IND_BLOCK; j <= EXT2_TIND_BLOCK; j++)
                     if (inode.i_block[j])
-                        print_indirect(inode.i_block[j], i + 1, j - EXT2_IND_BLOCK, 0);
+                        print_indirect(inode.i_block[j], i + 1, j - EXT2_IND_BLOCK, EXT2_IND_BLOCK, 0);
         }
     }
 }
@@ -190,31 +190,31 @@ void print_dirent(u_int32_t pos, u_int32_t parent)
     }
 }
 
-void print_indirect(u_int32_t pos, u_int32_t parent, int level, int level_offset)
+void print_indirect(u_int32_t pos, u_int32_t parent, int level, int level_offset, int local_offset)
 {
     if (level < 0)
         return;
-    int i, offset, local_offset;
+    int i, offset;
     u_int32_t buffer;
-    for (i = 0; i < EXT2_N_BLOCKS; i++)
+    for (i = 0; i < block_size / 4; i++)
     {
         offset = superblock_offset + (pos - 1) * block_size + i * sizeof(buffer);
-        local_offset = i + EXT2_NDIR_BLOCKS;
-        if (level == 1 && !level_offset)
+        if (level >= 1 && level_offset == EXT2_IND_BLOCK)
             level_offset += 256;
-        else if (level == 2)
-            level_offset += 256 + 256 * 256;
-        
+        if (level == 2)
+            level_offset += 256 * 256;
+
         pread(fd, &buffer, sizeof(buffer), offset);
         if (buffer)
         {
+            local_offset += i;
             printf("INDIRECT,%d,%d,%d,%d,%d\n",
                    parent,
                    level + 1,
                    level_offset + local_offset,
                    pos,
                    buffer);
-            print_indirect(buffer, parent, level - 1, level_offset);
+            print_indirect(buffer, parent, level - 1, level_offset, local_offset);
         }
     }
 }
