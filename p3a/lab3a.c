@@ -17,6 +17,7 @@ void print_ifree(u_int32_t pos);
 void print_inode(u_int32_t pos);
 void print_dirent(u_int32_t pos, u_int32_t parent, int level);
 void print_indirect(u_int32_t pos, u_int32_t parent, int level, int level_offset, int local_offset);
+u_int32_t block_offset(u_int32_t pos);
 
 int main(int argc, char **argv)
 {
@@ -79,7 +80,7 @@ void print_bfree(u_int32_t pos)
     char c, *buffer;
     u_int32_t i, j;
     buffer = (char *)malloc(sizeof(char) * superblock.s_blocks_count / 8);
-    pread(fd, buffer, superblock.s_blocks_count / 8, superblock_offset + (pos - 1) * block_size);
+    pread(fd, buffer, superblock.s_blocks_count / 8, block_offset(pos));
     for (i = 0; i < superblock.s_blocks_count / 8; i++)
     {
         c = buffer[i];
@@ -97,7 +98,7 @@ void print_ifree(u_int32_t pos)
     char c, *buffer;
     u_int32_t i, j;
     buffer = (char *)malloc(sizeof(char) * superblock.s_inodes_count / 8);
-    pread(fd, buffer, superblock.s_inodes_count / 8, superblock_offset + (pos - 1) * block_size);
+    pread(fd, buffer, superblock.s_inodes_count / 8, block_offset(pos));
     for (i = 0; i < superblock.s_inodes_count / 8; i++)
     {
         c = buffer[i];
@@ -118,7 +119,7 @@ void print_inode(u_int32_t pos)
     u_int32_t i, j;
     for (i = 0; i < superblock.s_inodes_count; i++)
     {
-        pread(fd, &inode, superblock.s_inode_size, superblock_offset + (pos - 1) * block_size + i * superblock.s_inode_size);
+        pread(fd, &inode, superblock.s_inode_size, block_offset(pos) + i * superblock.s_inode_size);
         if (inode.i_mode && inode.i_links_count)
         {
             // get file type
@@ -187,7 +188,8 @@ void print_dirent(u_int32_t pos, u_int32_t parent, int level)
         struct ext2_dir_entry dir;
         for (i = 0; i < block_size; i += offset)
         {
-            pread(fd, &dir, sizeof(dir), superblock_offset + (pos - 1) * block_size + i);
+            offset = block_offset(pos) + i;
+            pread(fd, &dir, sizeof(dir), offset);
             if (dir.inode)
                 printf("DIRENT,%d,%d,%d,%d,%d,'%s'\n",
                        parent,
@@ -205,7 +207,7 @@ void print_dirent(u_int32_t pos, u_int32_t parent, int level)
         u_int32_t buffer;
         for (i = 0; i < block_size / 4; i++)
         {
-            offset = superblock_offset + (pos - 1) * block_size + i * sizeof(buffer);
+            offset = block_offset(pos) + i * sizeof(buffer);
             pread(fd, &buffer, sizeof(buffer), offset);
             if (buffer)
                 print_dirent(buffer, parent, level - 1);
@@ -222,7 +224,7 @@ void print_indirect(u_int32_t pos, u_int32_t parent, int level, int level_offset
     for (i = 0; i < block_size / 4; i++)
     {
         // update offsets
-        offset = superblock_offset + (pos - 1) * block_size + i * sizeof(buffer);
+        offset = block_offset(pos) + i * sizeof(buffer);
         if (level >= 2 && level_offset == EXT2_IND_BLOCK)
             level_offset += 256;
         if (level == 3)
@@ -241,4 +243,8 @@ void print_indirect(u_int32_t pos, u_int32_t parent, int level, int level_offset
             print_indirect(buffer, parent, level - 1, level_offset, local_offset);
         }
     }
+}
+
+u_int32_t block_offset(u_int32_t pos) {
+    return superblock_offset + (pos - 1) * block_size;
 }
