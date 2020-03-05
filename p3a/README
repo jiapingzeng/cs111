@@ -3,7 +3,7 @@ EMAIL: jiapingzeng@ucla.edu, jakinw0508@g.ucla.edu
 ID: 905363270, 505314639
 
 Included files:
-  - lab3a.c: 
+  - lab3a.c: a C program that scans a file system image and prints out information of said image
   - Makefile:
     - default: compile lab3a.c to produce executable lab3a
     - dist: build the distribution tarball
