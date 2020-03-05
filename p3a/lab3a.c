@@ -190,6 +190,7 @@ void print_dirent(u_int32_t pos, u_int32_t parent, int level)
         {
             offset = block_offset(pos) + i;
             pread(fd, &dir, sizeof(dir), offset);
+            dir.name[dir.name_len] = '\0';
             if (dir.inode)
                 printf("DIRENT,%d,%d,%d,%d,%d,'%s'\n",
                        parent,
@@ -245,6 +246,7 @@ void print_indirect(u_int32_t pos, u_int32_t parent, int level, int level_offset
     }
 }
 
-u_int32_t block_offset(u_int32_t pos) {
+u_int32_t block_offset(u_int32_t pos)
+{
     return superblock_offset + (pos - 1) * block_size;
 }
