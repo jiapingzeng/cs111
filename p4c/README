@@ -1,0 +1,14 @@
+NAME: Jiaping Zeng
+EMAIL: jiapingzeng@ucla.edu
+ID: 905363270
+
+Included files:
+  - lab4c_tcp.c: 
+  - lab4c_tls.c:
+  - Makefile:
+    - default: 
+    - clean: delete programs and output created
+    - dist: build the distribution tarball
+
+References:
+https://www.gnu.org/software/libc/manual/html_node/Example-of-Getopt.html

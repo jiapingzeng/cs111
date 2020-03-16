@@ -1,0 +1,7 @@
+.vscode
+*.out
+*.tar.gz
+*test*
+lab4c_tcp
+lab4c_tls
+functions.sh
