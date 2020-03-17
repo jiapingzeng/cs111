@@ -13,12 +13,13 @@
 #include <signal.h>
 #include <string.h>
 #include <getopt.h>
-#include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 #include <mraa/gpio.h>
 #include <mraa/aio.h>
 
-int period = 1, scale = 'F', logfd = 1, stop = 0, pressed = 0, id, port;
+int period = 1, scale = 'F', logfd = 1, stop = 0, pressed = 0, id, port, sockfd = 1;
 char host[64];
 char time_buffer[16];
 time_t current_time;
@@ -40,14 +41,14 @@ int main(int argc, char **argv)
     char command_buffer[32], buffer[256];
     struct pollfd pfds[1];
 
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+
     pfds[0].fd = STDIN_FILENO;
     pfds[0].events = POLLIN | POLLHUP | POLLERR;
 
     sensor = mraa_aio_init(1);
-    button = mraa_gpio_init(60);
 
     mraa_gpio_dir(button, MRAA_GPIO_IN);
-    mraa_gpio_isr(button, MRAA_GPIO_EDGE_RISING, &button_pressed, NULL);
 
     while (!pressed)
     {
@@ -91,7 +92,7 @@ int main(int argc, char **argv)
 
 void parse_options(int argc, char **argv)
 {
-    int c, i;
+    int c;
     static struct option long_options[] = {
         {"period", required_argument, NULL, 'p'},
         {"scale", required_argument, NULL, 's'},
@@ -130,7 +131,7 @@ void parse_options(int argc, char **argv)
             id = atoi(optarg);
             break;
         case 'h':
-            host = optarg;
+            strncpy(host, optarg, 64);
             break;
         default:
             fprintf(stderr, "Unable to retrieve option\n");
@@ -138,7 +139,13 @@ void parse_options(int argc, char **argv)
         }
     }
 
-    port = atoi(argv[optind]);
+    if (optind < argc)
+        port = atoi(argv[optind]);
+    else
+    {
+        fprintf(stderr, "Port argument not found\n");
+        exit(1);
+    }
 }
 
 void run_command(char *command)

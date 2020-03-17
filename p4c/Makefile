@@ -7,7 +7,7 @@ CFLAGS = -g -Wall -Wextra -lmraa -lm
 
 dist_files = lab4c_tcp.c lab4c_tls.c Makefile README
 
-default: lab4c_tcp lab4c_tls
+default: lab4c_tcp # lab4c_tls
 
 clean:
 	rm -rf *test* a.out *.o *.tar.gz lab4c_tcp lab4c_tls
