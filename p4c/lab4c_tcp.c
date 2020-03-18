@@ -16,6 +16,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <arpa/inet.h>
 #include <mraa/gpio.h>
 #include <mraa/aio.h>
 
@@ -25,10 +26,10 @@ char time_buffer[16];
 time_t current_time;
 struct tm *timeinfo;
 mraa_aio_context sensor;
-mraa_gpio_context button;
 
 void parse_options(int argc, char **argv);
 void run_command(char *command);
+void initialize();
 void button_pressed();
 float get_temperature(uint16_t value);
 
@@ -41,14 +42,10 @@ int main(int argc, char **argv)
     char command_buffer[32], buffer[256];
     struct pollfd pfds[1];
 
-    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    initialize();
 
     pfds[0].fd = STDIN_FILENO;
     pfds[0].events = POLLIN | POLLHUP | POLLERR;
-
-    sensor = mraa_aio_init(1);
-
-    mraa_gpio_dir(button, MRAA_GPIO_IN);
 
     while (!pressed)
     {
@@ -64,9 +61,6 @@ int main(int argc, char **argv)
                 {
                     strncpy(command_buffer, buffer + start, i - start);
                     command_buffer[i - start] = '\0';
-                    //printf("i: %d, start: %d, command: %s\n", i, start, command_buffer);
-                    //if (logfd > 1)
-                    //    write(logfd, command_buffer, i - start);
                     run_command(strtok(command_buffer, "\n"));
                     start = i;
                 }
@@ -181,9 +175,36 @@ void run_command(char *command)
     }
     else if (strncmp(command, "OFF", 3) == 0)
     {
-        //dprintf(logfd, "turning off\n");
         button_pressed();
     }
+}
+
+void initialize()
+{
+    int len;
+    struct sockaddr_in addr;
+    sockfd = socket(AF_INET, SOCK_STREAM, 0);
+    if (sockfd < 0)
+    {
+        fprintf(stderr, "Unable to open socket");
+        exit(1);
+    }
+
+    addr.sin_family = AF_INET;
+    addr.sin_port = htons(port);
+    len = sizeof(addr);
+    if (inet_pton(AF_INET, host, &addr.sin_port) < 0)
+    {
+        fprintf("Address not supported");
+        exit(1);
+    }
+    if (connect(sockfd, (struct sockaddr *)&addr, (socklen_t)len) < 0)
+    {
+        fprintf("Connection failed");
+        exit(1);
+    }
+
+    sensor = mraa_aio_init(1);
 }
 
 void button_pressed()
@@ -198,7 +219,6 @@ void button_pressed()
 
     pressed = 1;
     mraa_aio_close(sensor);
-    mraa_gpio_close(button);
 }
 
 float get_temperature(uint16_t value)
