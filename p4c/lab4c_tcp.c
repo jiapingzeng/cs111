@@ -7,6 +7,7 @@
 #include <poll.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <netdb.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -25,6 +26,7 @@ char host[64];
 char time_buffer[16];
 time_t current_time;
 struct tm *timeinfo;
+struct hostent *server;
 mraa_aio_context sensor;
 
 void parse_options(int argc, char **argv);
@@ -37,12 +39,17 @@ int main(int argc, char **argv)
 {
     parse_options(argc, argv);
 
+    printf("Server: %s:%d, ID:%d\n", host, port, id);
+
     int i, start, bytes_read;
     uint16_t value;
     char command_buffer[32], buffer[256];
     struct pollfd pfds[1];
 
     initialize();
+
+    dprintf(sockfd, "ID=%d\n", id);
+    dprintf(logfd, "ID=%d\n", id);
 
     pfds[0].fd = STDIN_FILENO;
     pfds[0].events = POLLIN | POLLHUP | POLLERR;
@@ -186,21 +193,28 @@ void initialize()
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0)
     {
-        fprintf(stderr, "Unable to open socket");
+        fprintf(stderr, "Unable to open socket\n");
         exit(1);
     }
 
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
-    len = sizeof(addr);
-    if (inet_pton(AF_INET, host, &addr.sin_port) < 0)
-    {
-        fprintf("Address not supported");
+    //len = sizeof(addr);
+    server = gethostbyname(host);
+    if (!server) {
+        fprintf(stderr, "Unable to get host by name\n");
         exit(1);
     }
-    if (connect(sockfd, (struct sockaddr *)&addr, (socklen_t)len) < 0)
+    memcpy((char*)server->h_addr, (char*)&addr.sin_addr.s_addr, server->h_length);
+/*
+    if (inet_pton(AF_INET, (char *)server->h_addr, &addr.sin_addr) < 0) {
+        fprintf(stderr, "Address not supported\n");
+        exit(1);
+    }
+*/
+    if (connect(sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
     {
-        fprintf("Connection failed");
+        fprintf(stderr, "Connection failed\n");
         exit(1);
     }
 
