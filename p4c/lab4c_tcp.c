@@ -21,9 +21,8 @@
 #include <mraa/gpio.h>
 #include <mraa/aio.h>
 
-int period = 1, scale = 'F', logfd = 1, stop = 0, shutdown = 0, id, port, sockfd = 1;
-char host[64];
-char time_buffer[16];
+int period = 1, scale = 'F', logfd = 1, stop_flag = 0, shutdown_flag = 0, id, port, sockfd = 1;
+char host[64], time_buffer[16];
 time_t current_time;
 struct tm *timeinfo;
 mraa_aio_context sensor;
@@ -52,7 +51,7 @@ int main(int argc, char **argv)
     pfds[0].fd = sockfd;
     pfds[0].events = POLLIN | POLLHUP | POLLERR;
 
-    while (!shutdown)
+    while (!shutdown_flag)
     {
         poll(pfds, (nfds_t)2, 0);
         if (pfds[0].revents & POLLIN)
@@ -72,7 +71,7 @@ int main(int argc, char **argv)
             }
         }
 
-        if (!stop && !shutdown)
+        if (!stop_flag && !shutdown_flag)
         {
             time(&current_time);
             timeinfo = localtime(&current_time);
@@ -168,11 +167,11 @@ void run_command(char *command)
     }
     else if (strncmp(command, "STOP", 4) == 0)
     {
-        stop = 1;
+        stop_flag = 1;
     }
     else if (strncmp(command, "START", 5) == 0)
     {
-        stop = 0;
+        stop_flag = 0;
     }
     else if (strncmp(command, "LOG ", 4) == 0)
     {
@@ -214,7 +213,7 @@ void deinitialize()
     if (logfd > 1)
         dprintf(logfd, "%s SHUTDOWN\n", time_buffer);
 
-    shutdown = 1;
+    shutdown_flag = 1;
     mraa_aio_close(sensor);
 }
 
