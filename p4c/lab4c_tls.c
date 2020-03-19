@@ -20,13 +20,14 @@
 #include <arpa/inet.h>
 #include <mraa/gpio.h>
 #include <mraa/aio.h>
+#include <openssl/ssl.h>
 
 int period = 1, scale = 'F', logfd = 1, stop = 0, pressed = 0, id, port, sockfd = 1;
-char host[64];
-char time_buffer[16];
+char host[64], time_buffer[16], ssl_buffer[256];
 time_t current_time;
 struct tm *timeinfo;
 mraa_aio_context sensor;
+SSL *ssl;
 
 void parse_options(int argc, char **argv);
 void run_command(char *command);
@@ -46,7 +47,9 @@ int main(int argc, char **argv)
 
     initialize();
 
-    dprintf(sockfd, "ID=%d\n", id);
+    sprintf(ssl_buffer, "ID=%d\n", id);
+    if (SSL_write(ssl, ssl_buffer, strlen(buffer)+1) <= 0)
+        on_error("Failed to write SSL");
     dprintf(logfd, "ID=%d\n", id);
 
     pfds[0].fd = sockfd;
@@ -186,6 +189,7 @@ void initialize()
 {
     struct sockaddr_in addr;
     struct hostent *server;
+    SSL_CTX *ctx;
 
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0)
@@ -199,6 +203,22 @@ void initialize()
     memcpy((char *)&addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);
     if (connect(sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
         on_error("Connection failed");
+
+    SSL_library_init();
+    OpenSSL_add_all_algorithms();
+    SSL_load_error_strings();
+
+    ctx = SSL_CTX_new(TLSv1_client_method());
+    if (!ctx)
+        on_error("Unable to create context");
+    ssl = SSL_new(ctx);
+    if (!ssl)
+        on_error("Unable to create SSL structure");
+    if (SSL_set_fd(ssl, sockfd) != 1)
+        on_error("Unable to set SSL file descriptor");
+    if (SSL_connect(ssl) != 1)
+        on_error("Unable to connect to SSL");
+    
     sensor = mraa_aio_init(1);
 }
 
@@ -213,6 +233,10 @@ void button_pressed()
         dprintf(logfd, "%s SHUTDOWN\n", time_buffer);
 
     pressed = 1;
+    
+    SSL_shutdown(ssl);
+    SSL_free(ssl);
+
     mraa_aio_close(sensor);
 }
 
@@ -230,5 +254,5 @@ float get_temperature(uint16_t value)
 
 void on_error(char *message) {
     fprintf(stderr, "%s\n", message);
-    exit(1);
+    exit(2);
 }

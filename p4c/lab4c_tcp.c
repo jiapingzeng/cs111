@@ -79,7 +79,6 @@ int main(int argc, char **argv)
             strftime(time_buffer, 16, "%H:%M:%S", timeinfo);
             value = mraa_aio_read(sensor);
 
-            printf("%s %.1f\n", time_buffer, get_temperature(value));
             dprintf(sockfd, "%s %.1f\n", time_buffer, get_temperature(value));
             if (logfd > 1)
                 dprintf(logfd, "%s %.1f\n", time_buffer, get_temperature(value));
@@ -173,8 +172,7 @@ void run_command(char *command)
     }
     else if (strncmp(command, "LOG ", 4) == 0)
     {
-        if (logfd > 1)
-            dprintf(logfd, "%s\n", command);
+        // do nothing
     }
     else if (strncmp(command, "OFF", 3) == 0)
     {
