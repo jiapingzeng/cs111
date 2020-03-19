@@ -3,10 +3,10 @@ EMAIL: jiapingzeng@ucla.edu
 ID: 905363270
 
 Included files:
-  - lab4c_tcp.c: 
-  - lab4c_tls.c:
+  - lab4c_tcp.c: a C program for an embedded application that communicates via TCP on an embedded system
+  - lab4c_tls.c: a C program for an embedded application that communicates via TLS on an embedded system
   - Makefile:
-    - default: 
+    - default: compiles lab4c_tcp.c and lab4c_tls.c
     - clean: delete programs and output created
     - dist: build the distribution tarball
 

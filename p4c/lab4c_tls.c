@@ -22,7 +22,7 @@
 #include <mraa/aio.h>
 #include <openssl/ssl.h>
 
-int period = 1, scale = 'F', logfd = 1, stop = 0, pressed = 0, id, port, sockfd = 1;
+int period = 1, scale = 'F', logfd = 1, stop = 0, shutdown = 0, id, port, sockfd = 1;
 char host[64], time_buffer[16], ssl_buffer[256];
 time_t current_time;
 struct tm *timeinfo;
@@ -32,7 +32,7 @@ SSL *ssl;
 void parse_options(int argc, char **argv);
 void run_command(char *command);
 void initialize();
-void button_pressed();
+void deinitialize();
 float get_temperature(uint16_t value);
 void on_error(char *message);
 
@@ -55,14 +55,14 @@ int main(int argc, char **argv)
     pfds[0].fd = sockfd;
     pfds[0].events = POLLIN | POLLHUP | POLLERR;
 
-    while (!pressed)
+    while (!shutdown)
     {
         poll(pfds, (nfds_t)2, 0);
         if (pfds[0].revents & POLLIN)
         {
             bytes_read = SSL_read(ssl, buffer, 2048);
             if (bytes_read <= 0)
-                button_pressed();
+                deinitialize();
             for (i = 0, start = 0; i < bytes_read; i++)
             {
                 if (buffer[i] == '\n')
@@ -75,7 +75,7 @@ int main(int argc, char **argv)
             }
         }
 
-        if (!stop && !pressed)
+        if (!stop && !shutdown)
         {
             time(&current_time);
             timeinfo = localtime(&current_time);
@@ -138,14 +138,18 @@ void parse_options(int argc, char **argv)
             strncpy(host, optarg, 64);
             break;
         default:
-            on_error("Unable to retrieve option");
+            fprintf(stderr, "Unable to retrieve option\n");
+            exit(1);
         }
     }
 
     if (optind < argc)
         port = atoi(argv[optind]);
     else
-        on_error("Port argument not found");
+    {
+        fprintf(stderr, "Port argument not found\n");
+        exit(1);
+    }
 }
 
 void run_command(char *command)
@@ -181,7 +185,7 @@ void run_command(char *command)
     }
     else if (strncmp(command, "OFF", 3) == 0)
     {
-        button_pressed();
+        deinitialize();
     }
 }
 
@@ -222,7 +226,7 @@ void initialize()
     sensor = mraa_aio_init(1);
 }
 
-void button_pressed()
+void deinitialize()
 {
     time(&current_time);
     timeinfo = localtime(&current_time);
@@ -231,7 +235,7 @@ void button_pressed()
     if (logfd > 1)
         dprintf(logfd, "%s SHUTDOWN\n", time_buffer);
 
-    pressed = 1;
+    shutdown = 1;
 
     SSL_shutdown(ssl);
     SSL_free(ssl);
