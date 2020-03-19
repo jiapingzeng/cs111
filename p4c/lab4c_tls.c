@@ -48,7 +48,7 @@ int main(int argc, char **argv)
     initialize();
 
     sprintf(ssl_buffer, "ID=%d\n", id);
-    if (SSL_write(ssl, ssl_buffer, strlen(buffer)+1) <= 0)
+    if (SSL_write(ssl, ssl_buffer, strlen(ssl_buffer) + 1) <= 0)
         on_error("Failed to write SSL");
     dprintf(logfd, "ID=%d\n", id);
 
@@ -60,7 +60,7 @@ int main(int argc, char **argv)
         poll(pfds, (nfds_t)2, 0);
         if (pfds[0].revents & POLLIN)
         {
-            bytes_read = read(pfds[0].fd, buffer, 2048);
+            bytes_read = SSL_read(pfds[0].fd, buffer, 2048);
             if (bytes_read <= 0)
                 button_pressed();
             for (i = 0, start = 0; i < bytes_read; i++)
@@ -82,8 +82,9 @@ int main(int argc, char **argv)
             strftime(time_buffer, 16, "%H:%M:%S", timeinfo);
             value = mraa_aio_read(sensor);
 
-            printf("%s %.1f\n", time_buffer, get_temperature(value));
-            dprintf(sockfd, "%s %.1f\n", time_buffer, get_temperature(value));
+            sprintf(ssl_buffer, "%s %.1f\n", time_buffer, get_temperature(value));
+            if (SSL_write(ssl, ssl_buffer, strlen(ssl_buffer)+1 <= 0)
+                on_error("Failed to write SSL");
             if (logfd > 1)
                 dprintf(logfd, "%s %.1f\n", time_buffer, get_temperature(value));
             sleep(period);
@@ -218,7 +219,7 @@ void initialize()
         on_error("Unable to set SSL file descriptor");
     if (SSL_connect(ssl) != 1)
         on_error("Unable to connect to SSL");
-    
+
     sensor = mraa_aio_init(1);
 }
 
@@ -233,7 +234,7 @@ void button_pressed()
         dprintf(logfd, "%s SHUTDOWN\n", time_buffer);
 
     pressed = 1;
-    
+
     SSL_shutdown(ssl);
     SSL_free(ssl);
 
@@ -252,7 +253,8 @@ float get_temperature(uint16_t value)
     return temperature;
 }
 
-void on_error(char *message) {
+void on_error(char *message)
+{
     fprintf(stderr, "%s\n", message);
     exit(2);
 }
