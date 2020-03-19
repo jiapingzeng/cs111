@@ -43,7 +43,7 @@ int main(int argc, char **argv)
 
     int i, start, bytes_read;
     uint16_t value;
-    char command_buffer[32], buffer[256];
+    char command_buffer[128], buffer[2048];
     struct pollfd pfds[1];
 
     initialize();
@@ -51,7 +51,7 @@ int main(int argc, char **argv)
     dprintf(sockfd, "ID=%d\n", id);
     dprintf(logfd, "ID=%d\n", id);
 
-    pfds[0].fd = STDIN_FILENO;
+    pfds[0].fd = sockfd;
     pfds[0].events = POLLIN | POLLHUP | POLLERR;
 
     while (!pressed)
@@ -59,7 +59,7 @@ int main(int argc, char **argv)
         poll(pfds, (nfds_t)2, 0);
         if (pfds[0].revents & POLLIN)
         {
-            bytes_read = read(pfds[0].fd, buffer, 256);
+            bytes_read = read(pfds[0].fd, buffer, 2048);
             if (bytes_read <= 0)
                 button_pressed();
             for (i = 0, start = 0; i < bytes_read; i++)
@@ -82,6 +82,7 @@ int main(int argc, char **argv)
             value = mraa_aio_read(sensor);
 
             printf("%s %.1f\n", time_buffer, get_temperature(value));
+            dprintf(sockfd, "%s %.1f\n", time_buffer, get_temperature(value));
             if (logfd > 1)
                 dprintf(logfd, "%s %.1f\n", time_buffer, get_temperature(value));
             sleep(period);
@@ -178,7 +179,9 @@ void run_command(char *command)
     }
     else if (strncmp(command, "LOG ", 4) == 0)
     {
-        // do nothing
+        if (logfd > 1) {
+            dprintf(logfd, "%s\n", command);
+        }
     }
     else if (strncmp(command, "OFF", 3) == 0)
     {
@@ -188,7 +191,6 @@ void run_command(char *command)
 
 void initialize()
 {
-    int len;
     struct sockaddr_in addr;
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0)
@@ -199,19 +201,12 @@ void initialize()
 
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
-    //len = sizeof(addr);
     server = gethostbyname(host);
     if (!server) {
         fprintf(stderr, "Unable to get host by name\n");
         exit(1);
     }
-    memcpy((char*)server->h_addr, (char*)&addr.sin_addr.s_addr, server->h_length);
-/*
-    if (inet_pton(AF_INET, (char *)server->h_addr, &addr.sin_addr) < 0) {
-        fprintf(stderr, "Address not supported\n");
-        exit(1);
-    }
-*/
+    memcpy((char*)&addr.sin_addr.s_addr, (char*)server->h_addr, server->h_length);
     if (connect(sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
     {
         fprintf(stderr, "Connection failed\n");
