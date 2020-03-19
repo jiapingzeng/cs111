@@ -26,7 +26,6 @@ char host[64];
 char time_buffer[16];
 time_t current_time;
 struct tm *timeinfo;
-struct hostent *server;
 mraa_aio_context sensor;
 
 void parse_options(int argc, char **argv);
@@ -34,12 +33,11 @@ void run_command(char *command);
 void initialize();
 void button_pressed();
 float get_temperature(uint16_t value);
+void on_error(char *message);
 
 int main(int argc, char **argv)
 {
     parse_options(argc, argv);
-
-    printf("Server: %s:%d, ID:%d\n", host, port, id);
 
     int i, start, bytes_read;
     uint16_t value;
@@ -136,18 +134,14 @@ void parse_options(int argc, char **argv)
             strncpy(host, optarg, 64);
             break;
         default:
-            fprintf(stderr, "Unable to retrieve option\n");
-            exit(1);
+            on_error("Unable to retrieve option");
         }
     }
 
     if (optind < argc)
         port = atoi(argv[optind]);
     else
-    {
-        fprintf(stderr, "Port argument not found\n");
-        exit(1);
-    }
+        on_error("Port argument not found");
 }
 
 void run_command(char *command)
@@ -179,9 +173,8 @@ void run_command(char *command)
     }
     else if (strncmp(command, "LOG ", 4) == 0)
     {
-        if (logfd > 1) {
+        if (logfd > 1)
             dprintf(logfd, "%s\n", command);
-        }
     }
     else if (strncmp(command, "OFF", 3) == 0)
     {
@@ -192,27 +185,20 @@ void run_command(char *command)
 void initialize()
 {
     struct sockaddr_in addr;
+    struct hostent *server;
+
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd < 0)
-    {
-        fprintf(stderr, "Unable to open socket\n");
-        exit(1);
-    }
+        on_error("Unable to open socket");
 
     addr.sin_family = AF_INET;
     addr.sin_port = htons(port);
     server = gethostbyname(host);
-    if (!server) {
-        fprintf(stderr, "Unable to get host by name\n");
-        exit(1);
-    }
-    memcpy((char*)&addr.sin_addr.s_addr, (char*)server->h_addr, server->h_length);
+    if (!server)
+        on_error("Unable to get host by name");
+    memcpy((char *)&addr.sin_addr.s_addr, (char *)server->h_addr, server->h_length);
     if (connect(sockfd, (struct sockaddr *)&addr, sizeof(addr)) < 0)
-    {
-        fprintf(stderr, "Connection failed\n");
-        exit(1);
-    }
-
+        on_error("Connection failed");
     sensor = mraa_aio_init(1);
 }
 
@@ -240,4 +226,9 @@ float get_temperature(uint16_t value)
     if (scale == 'F')
         temperature = temperature * 1.8 + 32.0;
     return temperature;
+}
+
+void on_error(char *message) {
+    fprintf(stderr, "%s\n", message);
+    exit(1);
 }
